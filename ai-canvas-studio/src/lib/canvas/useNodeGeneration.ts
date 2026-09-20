@@ -1,12 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useReactFlow } from '@xyflow/react';
 import { useCanvasStore } from './store';
 import { resolveReferences } from './graph';
 import { loadAiSettings } from '@/lib/ai/settings';
 import { toDataUrl } from '@/lib/ai/image';
-import { DEFAULT_NODE_SIZE } from './constants';
 import type { AiGenerateResponse } from '@/lib/ai/types';
 import type { AiMessage } from './types';
 
@@ -33,7 +31,6 @@ export function useNodeGeneration(nodeId: string) {
   const nodes = useCanvasStore((state) => state.nodes);
   const edges = useCanvasStore((state) => state.edges);
   const updateNodeData = useCanvasStore((state) => state.updateNodeData);
-  const { fitView } = useReactFlow();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,23 +63,12 @@ export function useNodeGeneration(nodeId: string) {
     updateNodeData(nodeId, { referenceSrc: value } as never);
   }
 
-  /** 参考图片节点不写回自己，结果落到旁边的新图片节点。 */
+  /** 出图节点一律把结果写回自己，不再另外新建节点。 */
   function applyResult(aiMessages: AiMessage[], imageSrc?: string, text?: string) {
-    const store = useCanvasStore.getState();
     const ai = { messages: aiMessages, status: 'idle' as const };
 
     if (node!.data.kind === 'reference') {
-      const offset = {
-        x: node!.position.x + (node!.width ?? DEFAULT_NODE_SIZE.reference.width) + 80,
-        y: node!.position.y,
-      };
-      const createdId = store.addImageNode(offset);
-      store.updateNodeData(createdId, { src: imageSrc ?? null, ai } as never);
-      // 结果节点可能落在当前视野外（源节点右边再往下排），把它拉进来看得见，
-      // 否则用户以为「点了生成没反应」。
-      void fitView({ nodes: [{ id: createdId }], duration: 300, padding: 0.4, maxZoom: 1 });
-      // 参考图节点只保留对话记录，参考图本身不动。
-      updateNodeData(nodeId, { ai } as never, { history: false });
+      updateNodeData(nodeId, { src: imageSrc ?? null, ai } as never);
       return;
     }
 
@@ -161,6 +147,5 @@ export function useNodeGeneration(nodeId: string) {
     isMock,
     generate,
     summary: referenceSummary(bundle.texts.length, referenceImages.length),
-    resultToNewNode: node?.data.kind === 'reference',
   };
 }

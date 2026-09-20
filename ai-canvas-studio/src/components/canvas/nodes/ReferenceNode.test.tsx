@@ -7,13 +7,6 @@ import { ReferenceNode } from './ReferenceNode';
 import { useCanvasStore } from '@/lib/canvas/store';
 import type { CanvasNode } from '@/lib/canvas/types';
 
-const { fitViewSpy } = vi.hoisted(() => ({ fitViewSpy: vi.fn() }));
-
-vi.mock('@xyflow/react', async () => {
-  const actual = await vi.importActual<typeof import('@xyflow/react')>('@xyflow/react');
-  return { ...actual, useReactFlow: () => ({ fitView: fitViewSpy }) };
-});
-
 const s = () => useCanvasStore.getState();
 const svgDataUrl =
   'data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%2F%3E';
@@ -67,41 +60,25 @@ describe('ReferenceNode（参考图片节点）', () => {
     vi.restoreAllMocks();
   });
 
-  it('还没放图时显示上传入口，并提示这张图只作参考', () => {
+  it('还没放图时显示上传入口，并说明生成会写在本节点上', () => {
     setup();
     expect(screen.getByLabelText('上传参考图')).toBeInTheDocument();
-    expect(screen.getByText(/只作参考/)).toBeInTheDocument();
+    expect(screen.getByText(/生成的结果就写在这个节点上/)).toBeInTheDocument();
   });
 
-  it('生成结果落到旁边的新节点，参考图留在原节点', async () => {
+  it('生成结果直接写回本节点，不再新建节点', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ imageSrc: svgDataUrl })));
     const id = setup();
     await addReferenceImage();
     await userEvent.type(screen.getByLabelText('提示词'), '换成蓝色背景');
-    await userEvent.click(screen.getByRole('button', { name: 'AI 生成到新节点' }));
+    await userEvent.click(screen.getByRole('button', { name: 'AI 生成' }));
 
-    await waitFor(() => expect(s().nodes).toHaveLength(2));
+    await waitFor(() => {
+      const data = s().nodes.find((node) => node.id === id)!.data as { src: string | null };
+      expect(data.src).toContain('data:image/svg+xml');
+    });
 
-    const source = s().nodes.find((node) => node.id === id)!;
-    expect((source.data as { src: string | null }).src).toContain('data:image/png');
-
-    const created = s().nodes.find((node) => node.id !== id)!;
-    expect(created.type).toBe('image');
-    expect((created.data as { src: string | null }).src).toContain('data:image/svg+xml');
-  });
-
-  it('生成完成后把新结果移进视野，不会悄悄落在屏幕外', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ imageSrc: svgDataUrl })));
-    const id = setup();
-    await addReferenceImage();
-    await userEvent.type(screen.getByLabelText('提示词'), '换成蓝色背景');
-    await userEvent.click(screen.getByRole('button', { name: 'AI 生成到新节点' }));
-
-    await waitFor(() => expect(s().nodes).toHaveLength(2));
-    const created = s().nodes.find((node) => node.id !== id)!;
-
-    await waitFor(() => expect(fitViewSpy).toHaveBeenCalled());
-    expect(JSON.stringify(fitViewSpy.mock.calls[0][0])).toContain(created.id);
+    expect(s().nodes).toHaveLength(1);
   });
 
   it('把节点自己的参考图作为参考素材发出去', async () => {
@@ -111,7 +88,7 @@ describe('ReferenceNode（参考图片节点）', () => {
     await addReferenceImage();
 
     await userEvent.type(screen.getByLabelText('提示词'), '换成蓝色背景');
-    await userEvent.click(screen.getByRole('button', { name: 'AI 生成到新节点' }));
+    await userEvent.click(screen.getByRole('button', { name: 'AI 生成' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));

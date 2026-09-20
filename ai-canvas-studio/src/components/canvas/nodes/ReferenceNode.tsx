@@ -8,7 +8,7 @@ import { toReferenceImageDataUrl } from '@/lib/canvas/referenceImage';
 import { NodeAiPrompt } from '../NodeAiPrompt';
 import type { CanvasNode } from '@/lib/canvas/types';
 
-/** 参考图片节点：放参考素材用，生成的结果落到旁边的新节点，参考图不会被覆盖。 */
+/** 参考图片节点：放参考素材用，生成的结果直接写在这个节点上。 */
 export function ReferenceNode({ id, data, selected }: NodeProps<CanvasNode>) {
   const src = data.kind === 'reference' ? data.src : null;
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +75,7 @@ export function ReferenceNode({ id, data, selected }: NodeProps<CanvasNode>) {
                 />
               </label>
               <p className="text-center text-[10px] leading-tight text-gray-500">
-                这张图只作参考，生成的结果会放到新节点
+                这张图当作参考，生成的结果就写在这个节点上
               </p>
               {error && (
                 <p role="alert" className="text-[10px] text-red-600">

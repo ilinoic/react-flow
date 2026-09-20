@@ -25,7 +25,6 @@ export function NodeAiPrompt({
     summary,
     referenceSrc,
     setReferenceSrc,
-    resultToNewNode,
   } = useNodeGeneration(nodeId);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // 中文输入法组词期间先把内容留在本地，组词结束再写进画布：
@@ -134,7 +133,7 @@ export function NodeAiPrompt({
         onClick={() => void generate()}
         className="h-7 rounded bg-black px-2 text-xs text-white disabled:opacity-40"
       >
-        <span aria-hidden="true">✨</span> {busy ? '生成中…' : resultToNewNode ? 'AI 生成到新节点' : 'AI 生成'}
+        <span aria-hidden="true">✨</span> {busy ? '生成中…' : 'AI 生成'}
       </button>
     </div>
   );

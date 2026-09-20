@@ -31,7 +31,14 @@ export function AiSettingsForm() {
   const config = draft ?? stored ?? DEFAULT_AI_SETTINGS;
 
   function update<K extends keyof AiConfig>(key: K, value: AiConfig[K]) {
-    setDraft({ ...config, [key]: value });
+    setDraft(() => {
+      const next: AiConfig = { ...config, [key]: value };
+      // 填了 Key 还停在模拟模式是最容易踩的坑：自动切到自定义接口
+      if (key === 'apiKey' && String(value).trim() !== '') {
+        next.provider = 'openai-compatible';
+      }
+      return next;
+    });
   }
 
   function onSave() {

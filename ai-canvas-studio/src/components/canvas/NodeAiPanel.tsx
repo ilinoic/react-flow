@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { useCanvasStore } from '@/lib/canvas/store';
 import { resolveReferences } from '@/lib/canvas/graph';
 import { loadAiSettings } from '@/lib/ai/settings';
@@ -38,6 +39,8 @@ export function NodeAiPanel({ nodeId, onClose }: { nodeId: string; onClose: () =
   if (!node) return null;
 
   const mode = node.type === 'image' ? 'image' : 'text';
+  const settings = loadAiSettings();
+  const isMock = settings.provider === 'mock';
   const history = node.data.ai.messages;
   const referenceText = bundle.texts.map((item) => item.text).join('\n');
   const effectivePrompt = prompt.trim() || referenceText;
@@ -200,6 +203,18 @@ export function NodeAiPanel({ nodeId, onClose }: { nodeId: string; onClose: () =
       {!canGenerate && !busy && (
         <p className="text-xs text-gray-400">请输入提示词，或连接一个文本节点作为参考</p>
       )}
+
+      {isMock && (
+        <div className="rounded border border-amber-300 bg-amber-50 px-2 py-1.5">
+          <p className="text-[11px] leading-tight text-amber-800">
+            当前是模拟模式：生成的是占位图，不是真实结果。
+          </p>
+          <Link href="/settings" className="text-[11px] text-amber-900 underline">
+            去 AI 设置填接口和 Key
+          </Link>
+        </div>
+      )}
+
       {error && (
         <p role="alert" className="text-xs text-red-600">
           {error}

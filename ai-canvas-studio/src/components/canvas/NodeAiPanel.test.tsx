@@ -111,6 +111,12 @@ describe('NodeAiPanel', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('上游 401');
   });
 
+  it('模拟模式下明确提示出的是占位图', () => {
+    const id = s().addImageNode({ x: 0, y: 0 });
+    render(<NodeAiPanel nodeId={id} onClose={() => {}} />);
+    expect(screen.getByText(/模拟模式/)).toBeInTheDocument();
+  });
+
   it('生成请求带上连线参考的文本', async () => {
     const fetchMock = vi
       .fn()

@@ -37,7 +37,7 @@ const SAVE_LABEL: Record<SaveState, string> = {
   unsaved: '未保存',
   local: '已保存到本地',
   cloud: '已保存到云端',
-  error: '保存失败，可重试',
+  error: '保存失败，请重试或保存到云端',
 };
 
 function Inner() {
@@ -76,11 +76,10 @@ function Inner() {
         }
       }
 
-      const draft = loadDraft();
-      if (!cancelled && draft) {
-        useCanvasStore.getState().loadCanvas(draft);
-        setSaveState('local');
-      }
+      const draft = await loadDraft();
+      if (cancelled || !draft) return;
+      useCanvasStore.getState().loadCanvas(draft);
+      setSaveState('local');
     }
 
     void restore();
@@ -96,15 +95,17 @@ function Inner() {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         const store = useCanvasStore.getState();
-        saveDraft(
+        void saveDraft(
           buildCanvasFile({
             name: store.name,
             nodes: store.nodes,
             edges: store.edges,
             viewport: store.viewport,
           }),
-        );
-        setSaveState((previous) => (previous === 'cloud' ? previous : 'local'));
+        )
+          .then(() => setSaveState((previous) => (previous === 'cloud' ? previous : 'local')))
+          // 写不进去就要说出来，否则界面会一直显示「已保存」，刷新才发现丢了。
+          .catch(() => setSaveState('error'));
       }, 1500);
     });
     return () => {

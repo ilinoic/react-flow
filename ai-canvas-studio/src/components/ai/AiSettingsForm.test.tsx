@@ -45,4 +45,20 @@ describe('AiSettingsForm', () => {
     expect((screen.getByLabelText('图片模型') as HTMLInputElement).value).toMatch(/^wanx/);
     expect((screen.getByLabelText('API Key') as HTMLInputElement).value).toBe('sk-abc');
   });
+
+  it('API Key 默认隐藏，可切换成明文查看', async () => {
+    render(<AiSettingsForm />);
+
+    expect((screen.getByLabelText('API Key') as HTMLInputElement).type).toBe('password');
+    await userEvent.click(screen.getByRole('button', { name: '显示 Key' }));
+    expect((screen.getByLabelText('API Key') as HTMLInputElement).type).toBe('text');
+    await userEvent.click(screen.getByRole('button', { name: '隐藏 Key' }));
+    expect((screen.getByLabelText('API Key') as HTMLInputElement).type).toBe('password');
+  });
+
+  it('保存时如果 Key 是空的会提醒', async () => {
+    render(<AiSettingsForm />);
+    await userEvent.click(screen.getByRole('button', { name: '保存' }));
+    expect(screen.getByRole('status')).toHaveTextContent(/还没填 API Key/);
+  });
 });

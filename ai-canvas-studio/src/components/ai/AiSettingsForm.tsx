@@ -28,6 +28,7 @@ export function AiSettingsForm() {
   const [draft, setDraft] = useState<AiConfig | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
+  const [revealKey, setRevealKey] = useState(false);
 
   const config = draft ?? stored ?? DEFAULT_AI_SETTINGS;
 
@@ -45,7 +46,11 @@ export function AiSettingsForm() {
   function onSave() {
     saveAiSettings(config);
     setDraft(null);
-    setStatus('已保存到本机浏览器');
+    setStatus(
+      config.apiKey.trim() === ''
+        ? '已保存到本机浏览器，但还没填 API Key，生成仍会失败'
+        : '已保存到本机浏览器',
+    );
   }
 
   function onProviderChange(provider: AiProvider) {
@@ -105,17 +110,28 @@ export function AiSettingsForm() {
       </label>
 
       {FIELDS.map((field) => (
-        <label key={field.key} className="flex flex-col gap-1 text-sm">
+        <div key={field.key} className="flex flex-col gap-1 text-sm">
           {field.label}
-          <input
-            aria-label={field.label}
-            type={field.secret ? 'password' : 'text'}
-            value={String(config[field.key] ?? '')}
-            placeholder={field.placeholder}
-            onChange={(event) => update(field.key, event.target.value as AiConfig[typeof field.key])}
-            className="rounded border border-gray-300 px-3 py-2"
-          />
-        </label>
+          <div className="flex items-center gap-2">
+            <input
+              aria-label={field.label}
+              type={field.secret && !revealKey ? 'password' : 'text'}
+              value={String(config[field.key] ?? '')}
+              placeholder={field.placeholder}
+              onChange={(event) => update(field.key, event.target.value as AiConfig[typeof field.key])}
+              className="w-full rounded border border-gray-300 px-3 py-2"
+            />
+            {field.secret && (
+              <button
+                type="button"
+                onClick={() => setRevealKey((value) => !value)}
+                className="shrink-0 rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50"
+              >
+                {revealKey ? '隐藏 Key' : '显示 Key'}
+              </button>
+            )}
+          </div>
+        </div>
       ))}
 
       <div className="flex items-center gap-2">

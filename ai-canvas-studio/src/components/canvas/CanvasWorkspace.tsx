@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Background,
   BackgroundVariant,
@@ -15,6 +15,8 @@ import Link from 'next/link';
 import { useCanvasStore } from '@/lib/canvas/store';
 import { GRID_SIZE } from '@/lib/canvas/constants';
 import { buildCanvasFile, canvasFileName, downloadJson, serializeCanvasFile } from '@/lib/canvas/serialization';
+import { loadDraft, saveDraft } from '@/lib/canvas/localDraft';
+import { createProject, loadProjectGraph, updateProject } from '@/lib/projects/api';
 import { CanvasToolbar, type CanvasTool } from './CanvasToolbar';
 import { AlignmentBar } from './AlignmentBar';
 import { ContextMenu } from './ContextMenu';
@@ -27,18 +29,112 @@ const nodeTypes = { text: TextNode, image: ImageNode };
 
 type PaneMenu = { x: number; y: number; flow: { x: number; y: number } };
 type NodeMenu = { x: number; y: number; nodeId: string };
+type SaveState = 'unsaved' | 'local' | 'cloud' | 'error';
+
+const SAVE_LABEL: Record<SaveState, string> = {
+  unsaved: '未保存',
+  local: '已保存到本地',
+  cloud: '已保存到云端',
+  error: '保存失败，可重试',
+};
 
 function Inner() {
   const [tool, setTool] = useState<CanvasTool>('select');
   const [aiPanelNodeId, setAiPanelNodeId] = useState<string | null>(null);
   const [paneMenu, setPaneMenu] = useState<PaneMenu | null>(null);
   const [nodeMenu, setNodeMenu] = useState<NodeMenu | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<SaveState>('unsaved');
+  const [saving, setSaving] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const nodes = useCanvasStore((state) => state.nodes);
   const edges = useCanvasStore((state) => state.edges);
   const name = useCanvasStore((state) => state.name);
   const { screenToFlowPosition } = useReactFlow();
+
+  // 首次进入：URL 带 project 参数则读云端，否则恢复本地草稿
+  useEffect(() => {
+    let cancelled = false;
+    const queryId = new URLSearchParams(window.location.search).get('project');
+
+    async function restore() {
+      if (queryId) {
+        try {
+          const file = await loadProjectGraph(queryId);
+          if (cancelled) return;
+          useCanvasStore.getState().loadCanvas(file);
+          setProjectId(queryId);
+          setSaveState('cloud');
+          return;
+        } catch {
+          if (!cancelled) setSaveState('error');
+          return;
+        }
+      }
+
+      const draft = loadDraft();
+      if (!cancelled && draft) {
+        useCanvasStore.getState().loadCanvas(draft);
+        setSaveState('local');
+      }
+    }
+
+    void restore();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 画布变化后 1.5 秒防抖写本地草稿
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const unsubscribe = useCanvasStore.subscribe(() => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        const store = useCanvasStore.getState();
+        saveDraft(
+          buildCanvasFile({
+            name: store.name,
+            nodes: store.nodes,
+            edges: store.edges,
+            viewport: store.viewport,
+          }),
+        );
+        setSaveState((previous) => (previous === 'cloud' ? previous : 'local'));
+      }, 1500);
+    });
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsubscribe();
+    };
+  }, []);
+
+  const saveToCloud = useCallback(async () => {
+    const store = useCanvasStore.getState();
+    const file = buildCanvasFile({
+      name: store.name,
+      nodes: store.nodes,
+      edges: store.edges,
+      viewport: store.viewport,
+    });
+
+    setSaving(true);
+    try {
+      if (projectId) {
+        await updateProject(projectId, file, store.name);
+      } else {
+        const row = await createProject(store.name, file);
+        setProjectId(row.id);
+        window.history.replaceState(null, '', `/canvas?project=${row.id}`);
+      }
+      setSaveState('cloud');
+    } catch {
+      setSaveState('error');
+    } finally {
+      setSaving(false);
+    }
+  }, [projectId]);
 
   const addPosition = useCallback(() => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -65,7 +161,21 @@ function Inner() {
   return (
     <div ref={containerRef} className="relative h-dvh w-full bg-gray-50">
       <header className="absolute left-1/2 top-3 z-10 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-gray-200 bg-white/95 px-3 py-1.5 text-sm shadow">
-        <span className="font-medium text-gray-900">{name}</span>
+        <input
+          aria-label="画布名称"
+          value={name}
+          onChange={(event) => useCanvasStore.getState().setName(event.target.value)}
+          className="w-40 rounded border border-transparent px-1 py-0.5 font-medium text-gray-900 hover:border-gray-200 focus:border-gray-300 focus:outline-none"
+        />
+        <span className="text-xs text-gray-400">{SAVE_LABEL[saveState]}</span>
+        <button
+          type="button"
+          onClick={saveToCloud}
+          disabled={saving}
+          className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        >
+          {saving ? '保存中…' : '保存到云端'}
+        </button>
         <Link href="/settings" className="text-gray-500 hover:text-gray-900">
           AI 设置
         </Link>

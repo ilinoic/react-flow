@@ -35,8 +35,9 @@ export function AiSettingsForm() {
   function update<K extends keyof AiConfig>(key: K, value: AiConfig[K]) {
     setDraft(() => {
       const next: AiConfig = { ...config, [key]: value };
-      // 填了 Key 还停在模拟模式是最容易踩的坑：自动切到自定义接口
-      if (key === 'apiKey' && String(value).trim() !== '') {
+      // 填了 Key 还停在模拟模式是最容易踩的坑：自动切到自定义接口。
+      // 只在"模拟模式"下自动切换，不要顶掉用户已选的千问等预设。
+      if (key === 'apiKey' && String(value).trim() !== '' && next.provider === 'mock') {
         next.provider = 'openai-compatible';
       }
       return next;

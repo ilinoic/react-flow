@@ -56,6 +56,18 @@ describe('AiSettingsForm', () => {
     expect((screen.getByLabelText('API Key') as HTMLInputElement).type).toBe('password');
   });
 
+  it('已经选好千问预设时，填 Key 不会把供应商顶回"OpenAI 兼容接口"', async () => {
+    render(<AiSettingsForm />);
+
+    await userEvent.selectOptions(screen.getByLabelText('供应商'), 'qwen');
+    await userEvent.type(screen.getByLabelText('API Key'), 'sk-qwen');
+
+    expect((screen.getByLabelText('供应商') as HTMLSelectElement).value).toBe('qwen');
+    expect((screen.getByLabelText('Base URL') as HTMLInputElement).value).toBe(
+      'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    );
+  });
+
   it('保存时如果 Key 是空的会提醒', async () => {
     render(<AiSettingsForm />);
     await userEvent.click(screen.getByRole('button', { name: '保存' }));

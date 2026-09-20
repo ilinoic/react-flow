@@ -18,6 +18,7 @@ import { buildCanvasFile, canvasFileName, downloadJson, serializeCanvasFile } fr
 import { importCanvasFile, isCanvasJsonFile } from '@/lib/canvas/importCanvas';
 import { downloadImage } from '@/lib/canvas/downloadImage';
 import { copyImageToClipboard } from '@/lib/canvas/clipboardImage';
+import { clipboardNodeCount } from '@/lib/canvas/clipboard';
 import { loadDraft, saveDraft } from '@/lib/canvas/localDraft';
 import { createProject, loadProjectGraph, updateProject } from '@/lib/projects/api';
 import { CanvasToolbar, type CanvasTool } from './CanvasToolbar';
@@ -284,6 +285,11 @@ function Inner() {
             {
               label: '添加参考图片节点',
               run: () => useCanvasStore.getState().addReferenceNode(paneMenu.flow),
+            },
+            {
+              label: '粘贴（Ctrl+V）',
+              disabled: clipboardNodeCount() === 0,
+              run: () => useCanvasStore.getState().pasteClipboard(paneMenu.flow),
             },
             {
               label: '全选',

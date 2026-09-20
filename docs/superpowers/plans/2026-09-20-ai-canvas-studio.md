@@ -14,6 +14,9 @@
 
 - 项目目录：`D:\react flow\ai-canvas-studio`（源码在 `src/`，路径别名 `@/*`）。
 - 包管理器：`pnpm`（本机 pnpm 11；npm 不在 PATH 上）。
+- 实际落地版本（2026-09-20）：Next.js **16.3.5**（App Router + Turbopack）、React 19.2、Tailwind 4、TypeScript 5.9、zod 4、Vitest 5。
+- **Next 16 变更**：`middleware.ts` 已更名为 `src/proxy.ts`（导出 `proxy` 函数），会话刷新逻辑放在 `src/lib/supabase/session.ts`。
+- **本机环境约束**：`%APPDATA%` / `%LOCALAPPDATA%` 卷不支持原子重命名（EXDEV），跑 `next dev` 前需把这两个环境变量指到工作区目录内。
 - Node：v24（Codex 运行时自带）。
 - Supabase URL：`https://dbohemvfauczrwwxbvul.supabase.co`，publishable key：`sb_publishable_7XOj52Fz4BVzGrB96_iOWA_f_fSSOxv`。
 - 环境变量名固定：`NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY`。
@@ -33,10 +36,10 @@
 ai-canvas-studio/
   .env.local / .env.example            环境变量
   supabase/schema.sql                  建表 + RLS + Storage 策略
-  vitest.config.ts / vitest.setup.ts   Vitest 配置
+  vitest.config.mts / vitest.setup.ts  Vitest 配置
   playwright.config.ts                 端到端测试配置
   src/
-    middleware.ts                      会话刷新 + 路由保护
+    proxy.ts                           会话刷新 + 路由保护（Next 16 由 middleware 改名）
     app/
       layout.tsx  page.tsx  globals.css
       login/page.tsx  signup/page.tsx  settings/page.tsx
@@ -265,8 +268,8 @@ cd "D:\react flow"; git add -A; git commit -m "chore: add supabase schema and en
 ### Task 3: 邮箱注册登录与路由保护
 
 **Files:**
-- Create: `src/lib/supabase/client.ts`、`src/lib/supabase/server.ts`、`src/lib/supabase/middleware.ts`
-- Create: `src/middleware.ts`
+- Create: `src/lib/supabase/client.ts`、`src/lib/supabase/server.ts`、`src/lib/supabase/session.ts`
+- Create: `src/proxy.ts`（Next 16 用 proxy 取代 middleware）
 - Create: `src/lib/auth/validation.ts`、`src/lib/auth/validation.test.ts`
 - Create: `src/components/auth/AuthForm.tsx`
 - Create: `src/app/login/page.tsx`、`src/app/signup/page.tsx`

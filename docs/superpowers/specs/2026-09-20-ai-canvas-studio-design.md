@@ -29,7 +29,7 @@
 
 | 层 | 选型 | 说明 |
 | --- | --- | --- |
-| 前端框架 | Next.js 15（App Router + TypeScript） | 使用 `create-next-app` 官方模板初始化 |
+| 前端框架 | Next.js 16（App Router + TypeScript + Turbopack） | 2026-09-20 用 `create-next-app` 官方模板初始化，实际落地 16.3.5 |
 | 样式 | Tailwind CSS + shadcn/ui 风格自建组件 | 模板自带 Tailwind |
 | 画布引擎 | `@xyflow/react`（React Flow v12） | 节点/连线/缩放/网格吸附原生支持 |
 | 状态管理 | `zustand` + 自建快照历史 | 撤销/重做可控、可测试 |
@@ -53,6 +53,9 @@ Next.js Route Handlers（服务端）
  ├─ /auth/callback                  邮箱确认/魔法链接回跳
  └─ /api/ai/generate                统一生成入口（鉴权后转发到自定义 API）
 
+src/proxy.ts（Next 16 的 middleware 改名）
+ └─ 刷新 Supabase 会话 Cookie + 保护 /canvas、/projects、/settings
+
 Supabase
  ├─ Auth：邮箱注册登录
  ├─ Postgres：projects（画布 JSON）、ai_settings（可选）
@@ -73,7 +76,8 @@ Supabase
 - 注册登录方式：**邮箱**。主流程为「邮箱 + 密码」注册，注册后发送确认邮件；
   确认链接通过 `/auth/callback` 完成会话建立。登录页同时提供「邮箱验证码/魔法链接」
   作为备用方式（同一入口，二选一按钮）。
-- 会话使用 `@supabase/ssr` 的 Cookie 方案，`middleware.ts` 保护 `/canvas`、`/projects`、`/settings`。
+- 会话使用 `@supabase/ssr` 的 Cookie 方案，`src/proxy.ts`（Next 16 里由 middleware 改名而来，
+  逻辑在 `src/lib/supabase/session.ts`）保护 `/canvas`、`/projects`、`/settings`。
 - 所有表开启 RLS，策略统一为 `user_id = auth.uid()`。
 - Storage 桶 `canvas-images` 为私有桶，对象路径强制 `{user_id}/...`，读取使用签名 URL。
 - 自定义 API 的 Key **只保存在浏览器 localStorage**，请求时随 HTTPS 发到自家
@@ -306,6 +310,7 @@ type CanvasEdge = {
 | 编号 | 假设/风险 | 处理 |
 | --- | --- | --- |
 | A1 | 项目目录 `D:\react flow\ai-canvas-studio`，用官方模板初始化 | 如需改名/换位置请提出 |
+| A1b | 本机 `%APPDATA%`/`%LOCALAPPDATA%` 卷不支持原子重命名（EXDEV） | 运行 `next dev` 前把两个环境变量指到工作区目录 |
 | A2 | 登录方式 = 邮箱+密码（含邮箱确认），备用魔法链接 | 若只想魔法链接，可关掉密码入口 |
 | A3 | AI 按 OpenAI 兼容协议接入，base URL/Key/模型可自定义 | 其他协议（如 Gemini 原生）后续加适配器 |
 | A4 | 参考解析只取直接入边（一层） | 需要穿透多层再改 |

@@ -15,6 +15,8 @@ import Link from 'next/link';
 import { useCanvasStore } from '@/lib/canvas/store';
 import { GRID_SIZE } from '@/lib/canvas/constants';
 import { buildCanvasFile, canvasFileName, downloadJson, serializeCanvasFile } from '@/lib/canvas/serialization';
+import { importCanvasFile, isCanvasJsonFile } from '@/lib/canvas/importCanvas';
+import { downloadImage } from '@/lib/canvas/downloadImage';
 import { loadDraft, saveDraft } from '@/lib/canvas/localDraft';
 import { createProject, loadProjectGraph, updateProject } from '@/lib/projects/api';
 import { CanvasToolbar, type CanvasTool } from './CanvasToolbar';
@@ -52,6 +54,7 @@ function Inner() {
   const edges = useCanvasStore((state) => state.edges);
   const name = useCanvasStore((state) => state.name);
   const { screenToFlowPosition } = useReactFlow();
+  const { fitView } = useReactFlow();
 
   // 首次进入：URL 带 project 参数则读云端，否则恢复本地草稿
   useEffect(() => {
@@ -159,7 +162,21 @@ function Inner() {
   const menuNode = nodeMenu ? nodes.find((node) => node.id === nodeMenu.nodeId) : undefined;
 
   return (
-    <div ref={containerRef} className="relative h-dvh w-full bg-gray-50">
+    <div
+      ref={containerRef}
+      className="relative h-dvh w-full bg-gray-50"
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={async (event) => {
+        event.preventDefault();
+        const file = event.dataTransfer.files?.[0];
+        if (!file || !isCanvasJsonFile(file)) return;
+        const result = await importCanvasFile(file);
+        if (result.ok) {
+          useCanvasStore.getState().loadCanvas(result.file);
+          void fitView({ padding: 0.2 });
+        }
+      }}
+    >
       <header className="absolute left-1/2 top-3 z-10 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-gray-200 bg-white/95 px-3 py-1.5 text-sm shadow">
         <input
           aria-label="画布名称"
@@ -184,7 +201,12 @@ function Inner() {
         </Link>
       </header>
 
-      <CanvasToolbar tool={tool} onToolChange={setTool} addPosition={addPosition} />
+      <CanvasToolbar
+        tool={tool}
+        onToolChange={setTool}
+        addPosition={addPosition}
+        onFitView={() => void fitView({ padding: 0.2 })}
+      />
       <AlignmentBar />
 
       <ReactFlow
@@ -282,6 +304,14 @@ function Inner() {
             {
               label: '断开全部连线',
               run: () => useCanvasStore.getState().disconnectNode(nodeMenu.nodeId),
+            },
+            {
+              label: '下载图片',
+              disabled: menuNode?.type !== 'image' || !(menuNode?.data as { src?: string | null } | undefined)?.src,
+              run: () => {
+                const src = (menuNode?.data as { src?: string | null } | undefined)?.src;
+                if (src) void downloadImage(src);
+              },
             },
             {
               label: '复制节点',

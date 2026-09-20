@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCanvasStore } from '@/lib/canvas/store';
+import { importCanvasFile } from '@/lib/canvas/importCanvas';
 
 export type CanvasTool = 'select' | 'hand';
 
@@ -41,16 +42,30 @@ export function CanvasToolbar({
   tool,
   onToolChange,
   addPosition,
+  onFitView,
 }: {
   tool: CanvasTool;
   onToolChange: (tool: CanvasTool) => void;
   addPosition: () => { x: number; y: number };
+  onFitView: () => void;
 }) {
   const nodes = useCanvasStore((state) => state.nodes);
   const canUndo = useCanvasStore((state) => state.past.length > 0);
   const canRedo = useCanvasStore((state) => state.future.length > 0);
   const [confirmingClear, setConfirmingClear] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const selectedIds = nodes.filter((node) => node.selected).map((node) => node.id);
+
+  async function onImportFile(file: File) {
+    const result = await importCanvasFile(file);
+    if (!result.ok) {
+      setImportError(result.error);
+      return;
+    }
+    setImportError(null);
+    useCanvasStore.getState().loadCanvas(result.file);
+  }
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -76,6 +91,24 @@ export function CanvasToolbar({
         store.redo();
         return;
       }
+      if (mod && event.key.toLowerCase() === 'a') {
+        event.preventDefault();
+        store.onNodesChange(
+          store.nodes.map((node) => ({ id: node.id, type: 'select' as const, selected: true })),
+        );
+        return;
+      }
+      if (mod && event.key.toLowerCase() === 'd') {
+        event.preventDefault();
+        const targets = store.nodes.filter((node) => node.selected).map((node) => node.id);
+        targets.forEach((id) => store.duplicateNode(id));
+        return;
+      }
+      if (mod && event.key === '0') {
+        event.preventDefault();
+        onFitView();
+        return;
+      }
       if (event.key === 'Delete' || event.key === 'Backspace') {
         const ids = store.nodes.filter((node) => node.selected).map((node) => node.id);
         if (ids.length === 0) return;
@@ -86,7 +119,7 @@ export function CanvasToolbar({
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onToolChange]);
+  }, [onToolChange, onFitView]);
 
   return (
     <aside className="absolute left-3 top-3 z-20 flex h-[calc(100%-24px)] w-14 flex-col items-center gap-1.5 rounded-xl border border-gray-200 bg-white/95 p-2 shadow">
@@ -99,6 +132,20 @@ export function CanvasToolbar({
       <span className="my-1 h-px w-8 bg-gray-200" />
       <ToolButton label="添加文本节点" onClick={() => useCanvasStore.getState().addTextNode(addPosition())} />
       <ToolButton label="添加图片节点" onClick={() => useCanvasStore.getState().addImageNode(addPosition())} />
+      <ToolButton label="导入画布" onClick={() => fileInputRef.current?.click()} />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="application/json,.json"
+        aria-label="导入画布文件"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) void onImportFile(file);
+          event.target.value = '';
+        }}
+      />
+      {importError && <span className="text-[10px] leading-tight text-red-600">{importError}</span>}
       <span className="my-1 h-px w-8 bg-gray-200" />
       <ToolButton label="撤销" disabled={!canUndo} onClick={() => useCanvasStore.getState().undo()} />
       <ToolButton label="重做" disabled={!canRedo} onClick={() => useCanvasStore.getState().redo()} />

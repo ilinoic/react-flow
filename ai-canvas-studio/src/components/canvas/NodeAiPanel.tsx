@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useEffect } from 'react';
 import { useCanvasStore } from '@/lib/canvas/store';
 import { resolveReferences } from '@/lib/canvas/graph';
 import { loadAiSettings } from '@/lib/ai/settings';
@@ -21,9 +22,18 @@ export function NodeAiPanel({ nodeId, onClose }: { nodeId: string; onClose: () =
   const [prompt, setPrompt] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [resultTarget, setResultTarget] = useState<'self' | 'new-node'>('self');
 
   const node = nodes.find((item) => item.id === nodeId);
   const bundle = useMemo(() => resolveReferences(nodeId, nodes, edges), [nodeId, nodes, edges]);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
 
   if (!node) return null;
 
@@ -75,12 +85,33 @@ export function NodeAiPanel({ nodeId, onClose }: { nodeId: string; onClose: () =
       };
       const messages = [...history, userMessage, assistantMessage];
 
-      updateNodeData(
-        nodeId,
-        mode === 'image'
-          ? ({ src: json.imageSrc, ai: { messages, status: 'idle' } } as never)
-          : ({ text: json.text, ai: { messages, status: 'idle' } } as never),
-      );
+      const aiState = { messages, status: 'idle' as const };
+
+      if (resultTarget === 'new-node') {
+        const store = useCanvasStore.getState();
+        const offset = {
+          x: node!.position.x + (node!.width ?? 240) + 80,
+          y: node!.position.y,
+        };
+        const createdId = mode === 'image'
+          ? store.addImageNode(offset)
+          : store.addTextNode(offset);
+        store.updateNodeData(
+          createdId,
+          mode === 'image'
+            ? ({ src: json.imageSrc, ai: aiState } as never)
+            : ({ text: json.text, ai: aiState } as never),
+        );
+        // 原节点只保留对话记录，结果落到新节点
+        updateNodeData(nodeId, { ai: aiState } as never, { history: false });
+      } else {
+        updateNodeData(
+          nodeId,
+          mode === 'image'
+            ? ({ src: json.imageSrc, ai: aiState } as never)
+            : ({ text: json.text, ai: aiState } as never),
+        );
+      }
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : '生成失败';
       setError(message);
@@ -152,6 +183,19 @@ export function NodeAiPanel({ nodeId, onClose }: { nodeId: string; onClose: () =
         placeholder="描述你想生成的内容；留空则使用连线上文本节点的内容"
         className="h-20 w-full resize-none rounded border border-gray-300 p-2 text-sm"
       />
+
+      <label className="flex items-center justify-between gap-2 text-xs text-gray-600">
+        生成结果
+        <select
+          aria-label="生成结果"
+          value={resultTarget}
+          onChange={(event) => setResultTarget(event.target.value as 'self' | 'new-node')}
+          className="rounded border border-gray-300 px-2 py-1 text-xs"
+        >
+          <option value="self">写回本节点</option>
+          <option value="new-node">新建节点</option>
+        </select>
+      </label>
 
       {!canGenerate && !busy && (
         <p className="text-xs text-gray-400">请输入提示词，或连接一个文本节点作为参考</p>

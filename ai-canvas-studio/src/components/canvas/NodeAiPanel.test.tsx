@@ -73,6 +73,29 @@ describe('NodeAiPanel', () => {
     });
   });
 
+  it('选择"新建节点"时结果落到新节点，原节点不被覆盖', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ imageSrc: svgDataUrl }), { status: 200 })),
+    );
+
+    const id = s().addImageNode({ x: 0, y: 0 });
+    render(<NodeAiPanel nodeId={id} onClose={() => {}} />);
+
+    await userEvent.selectOptions(screen.getByLabelText('生成结果'), 'new-node');
+    await userEvent.type(screen.getByLabelText('提示词'), '一只猫');
+    await userEvent.click(screen.getByRole('button', { name: '生成' }));
+
+    await waitFor(() => expect(s().nodes).toHaveLength(2));
+
+    const original = s().nodes.find((item) => item.id === id)!;
+    expect((original.data as { src: string | null }).src).toBeNull();
+
+    const created = s().nodes.find((item) => item.id !== id)!;
+    expect((created.data as { src: string | null }).src).toContain('data:image/svg+xml');
+    expect((original.data as { ai: { messages: unknown[] } }).ai.messages).toHaveLength(2);
+  });
+
   it('失败时显示错误信息', async () => {
     vi.stubGlobal(
       'fetch',

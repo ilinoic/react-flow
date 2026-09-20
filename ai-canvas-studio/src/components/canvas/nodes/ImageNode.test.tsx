@@ -1,25 +1,24 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render } from '@testing-library/react';
 import { ReactFlowProvider } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
-import { TextNode } from './TextNode';
+import { ImageNode } from './ImageNode';
 import { useCanvasStore } from '@/lib/canvas/store';
 import type { CanvasNode } from '@/lib/canvas/types';
 
 const s = () => useCanvasStore.getState();
 
 function setup() {
-  const id = s().addTextNode({ x: 0, y: 0 });
+  const id = s().addImageNode({ x: 0, y: 0 });
   const node = s().nodes.find((item) => item.id === id)!;
   const props = {
     id,
     data: node.data,
     selected: false,
-    type: 'text',
+    type: 'image',
     position: node.position,
     width: 240,
-    height: 120,
+    height: 240,
     dragging: false,
     zIndex: 0,
     isConnectable: true,
@@ -32,34 +31,22 @@ function setup() {
 
   render(
     <ReactFlowProvider>
-      <TextNode {...props} />
+      <ImageNode {...props} />
     </ReactFlowProvider>,
   );
   return id;
 }
 
-describe('TextNode', () => {
+describe('ImageNode', () => {
   beforeEach(() => s().reset());
 
-  it('双击后显示可编辑输入框', async () => {
+  it('未上传时显示上传按钮', () => {
     setup();
-    await userEvent.dblClick(screen.getByTestId('text-node-body'));
-    expect(screen.getByRole('textbox')).toBeInTheDocument();
+    expect(document.querySelector('[data-testid="image-node-body"]')).not.toBeNull();
+    expect(document.querySelector('label')?.textContent).toContain('点击上传图片');
   });
 
-  it('输入内容并失焦后写回 store 且可撤销', async () => {
-    const id = setup();
-    await userEvent.dblClick(screen.getByTestId('text-node-body'));
-    await userEvent.type(screen.getByRole('textbox'), '水彩风格');
-    await userEvent.tab();
-
-    expect((s().nodes.find((item) => item.id === id)!.data as { text: string }).text).toBe('水彩风格');
-
-    s().undo();
-    expect((s().nodes.find((item) => item.id === id)!.data as { text: string }).text).toBe('');
-  });
-
-  it('连接点在左右两侧中部：左为参考输入、右为输出', () => {
+  it('连接点在左右两侧中部', () => {
     setup();
     expect(document.querySelector('.react-flow__handle-left')).not.toBeNull();
     expect(document.querySelector('.react-flow__handle-right')).not.toBeNull();

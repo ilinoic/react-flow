@@ -41,8 +41,8 @@ export function ImageNode({ id, data, selected }: NodeProps<CanvasNode>) {
         minHeight={MIN_NODE_SIZE.image.height}
         onResizeStart={() => commitHistory()}
       />
-      <Handle type="target" position={Position.Top} />
-      <Handle type="source" position={Position.Bottom} />
+      <Handle type="target" position={Position.Left} />
+      <Handle type="source" position={Position.Right} />
       <div
         data-testid="image-node-body"
         onDragOver={(event) => event.preventDefault()}

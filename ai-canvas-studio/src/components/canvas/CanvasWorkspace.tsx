@@ -42,7 +42,6 @@ const SAVE_LABEL: Record<SaveState, string> = {
 
 function Inner() {
   const [tool, setTool] = useState<CanvasTool>('select');
-  const [aiPanelNodeId, setAiPanelNodeId] = useState<string | null>(null);
   const [paneMenu, setPaneMenu] = useState<PaneMenu | null>(null);
   const [nodeMenu, setNodeMenu] = useState<NodeMenu | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -53,6 +52,7 @@ function Inner() {
   const nodes = useCanvasStore((state) => state.nodes);
   const edges = useCanvasStore((state) => state.edges);
   const name = useCanvasStore((state) => state.name);
+  const aiPanelNodeId = useCanvasStore((state) => state.aiPanelNodeId);
   const { screenToFlowPosition } = useReactFlow();
   const { fitView } = useReactFlow();
 
@@ -297,9 +297,8 @@ function Inner() {
               run: () => useCanvasStore.getState().removeNodes([nodeMenu.nodeId]),
             },
             {
-              label: '用此图生成',
-              disabled: menuNode?.type !== 'image',
-              run: () => setAiPanelNodeId(nodeMenu.nodeId),
+              label: menuNode?.type === 'image' ? '用此图生成' : 'AI 对话框',
+              run: () => useCanvasStore.getState().openAiPanel(nodeMenu.nodeId),
             },
             {
               label: '断开全部连线',
@@ -322,7 +321,10 @@ function Inner() {
       )}
 
       {aiPanelNodeId && (
-        <NodeAiPanel nodeId={aiPanelNodeId} onClose={() => setAiPanelNodeId(null)} />
+        <NodeAiPanel
+          nodeId={aiPanelNodeId}
+          onClose={() => useCanvasStore.getState().closeAiPanel()}
+        />
       )}
     </div>
   );

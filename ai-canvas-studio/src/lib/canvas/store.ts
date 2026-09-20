@@ -27,6 +27,7 @@ export type CanvasStore = {
   nodes: CanvasNode[];
   edges: CanvasEdge[];
   viewport: Viewport;
+  aiPanelNodeId: string | null;
   past: Snapshot[];
   future: Snapshot[];
   commitHistory: () => void;
@@ -47,6 +48,8 @@ export type CanvasStore = {
   onEdgesChange: (changes: EdgeChange<CanvasEdge>[]) => void;
   setViewport: (viewport: Viewport) => void;
   setName: (name: string) => void;
+  openAiPanel: (nodeId: string) => void;
+  closeAiPanel: () => void;
   loadCanvas: (file: CanvasFile) => void;
   reset: () => void;
 };
@@ -84,6 +87,7 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => {
     nodes: [],
     edges: [],
     viewport: { x: 0, y: 0, zoom: 1 },
+    aiPanelNodeId: null,
     past: [],
     future: [],
 
@@ -237,11 +241,16 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => {
 
     setName: (name) => set({ name }),
 
+    openAiPanel: (nodeId) => set({ aiPanelNodeId: nodeId }),
+
+    closeAiPanel: () => set({ aiPanelNodeId: null }),
+
     loadCanvas: (file) => set({
       name: file.name,
       nodes: file.nodes ?? [],
       edges: file.edges ?? [],
       viewport: file.viewport ?? { x: 0, y: 0, zoom: 1 },
+      aiPanelNodeId: null,
       past: [],
       future: [],
     }),
@@ -251,6 +260,7 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => {
       nodes: [],
       edges: [],
       viewport: { x: 0, y: 0, zoom: 1 },
+      aiPanelNodeId: null,
       past: [],
       future: [],
     }),

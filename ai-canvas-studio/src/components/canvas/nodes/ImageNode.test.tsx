@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ReactFlowProvider } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
 import { ImageNode } from './ImageNode';
@@ -52,5 +53,11 @@ describe('ImageNode', () => {
     expect(document.querySelector('.react-flow__handle-right')).not.toBeNull();
     expect(document.querySelector('.react-flow__handle-top')).toBeNull();
     expect(document.querySelector('.react-flow__handle-bottom')).toBeNull();
+  });
+
+  it('点击节点上的 AI 按钮会打开该节点的对话框', async () => {
+    const id = setup();
+    await userEvent.click(document.querySelector('[aria-label="打开 AI 对话框"]')!);
+    expect(s().aiPanelNodeId).toBe(id);
   });
 });

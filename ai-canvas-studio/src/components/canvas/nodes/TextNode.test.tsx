@@ -66,4 +66,10 @@ describe('TextNode', () => {
     expect(document.querySelector('.react-flow__handle-top')).toBeNull();
     expect(document.querySelector('.react-flow__handle-bottom')).toBeNull();
   });
+
+  it('点击节点上的 AI 按钮会打开该节点的对话框', async () => {
+    const id = setup();
+    await userEvent.click(screen.getByRole('button', { name: '打开 AI 对话框' }));
+    expect(s().aiPanelNodeId).toBe(id);
+  });
 });

@@ -13,6 +13,7 @@ export function TextNode({ id, data, selected }: NodeProps<CanvasNode>) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const updateNodeData = useCanvasStore((state) => state.updateNodeData);
   const commitHistory = useCanvasStore((state) => state.commitHistory);
+  const openAiPanel = useCanvasStore((state) => state.openAiPanel);
 
   useEffect(() => {
     if (editing) textareaRef.current?.focus();
@@ -33,6 +34,18 @@ export function TextNode({ id, data, selected }: NodeProps<CanvasNode>) {
       />
       <Handle type="target" position={Position.Left} />
       <Handle type="source" position={Position.Right} />
+      <button
+        type="button"
+        aria-label="打开 AI 对话框"
+        title="打开 AI 对话框"
+        onClick={(event) => {
+          event.stopPropagation();
+          openAiPanel(id);
+        }}
+        className="nodrag absolute -top-2 -right-2 z-10 rounded-full border border-gray-300 bg-white/95 px-1.5 py-0.5 text-[10px] text-gray-600 shadow hover:bg-gray-100"
+      >
+        AI
+      </button>
       <div
         data-testid="text-node-body"
         onDoubleClick={() => {

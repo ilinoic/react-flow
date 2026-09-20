@@ -50,4 +50,22 @@ describe('画布状态仓库', () => {
     for (let i = 0; i < 130; i += 1) s().addTextNode({ x: i, y: 0 });
     expect(s().past.length).toBeLessThanOrEqual(100);
   });
+
+  it('可以打开与关闭某个节点的 AI 对话框', () => {
+    const id = s().addTextNode({ x: 0, y: 0 });
+    expect(s().aiPanelNodeId).toBeNull();
+
+    s().openAiPanel(id);
+    expect(s().aiPanelNodeId).toBe(id);
+
+    s().closeAiPanel();
+    expect(s().aiPanelNodeId).toBeNull();
+  });
+
+  it('重置画布会关掉对话框', () => {
+    const id = s().addTextNode({ x: 0, y: 0 });
+    s().openAiPanel(id);
+    s().reset();
+    expect(s().aiPanelNodeId).toBeNull();
+  });
 });

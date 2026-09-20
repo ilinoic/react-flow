@@ -14,17 +14,34 @@ export type AiNodeState = {
   error?: string;
 };
 
-export type TextNodeData = { kind: 'text'; text: string; ai: AiNodeState };
+export type TextNodeData = {
+  kind: 'text';
+  text: string;
+  prompt: string;
+  /** 节点自带的参考图，不参与生成结果的写回。 */
+  referenceSrc?: string | null;
+  ai: AiNodeState;
+};
 export type ImageNodeData = {
   kind: 'image';
   src: string | null;
   storagePath?: string;
   alt: string;
+  prompt: string;
+  referenceSrc?: string | null;
   ai: AiNodeState;
 };
-export type CanvasNodeData = TextNodeData | ImageNodeData;
+/** 参考图片节点：只放参考素材，生成的结果落到旁边新节点。 */
+export type ReferenceNodeData = {
+  kind: 'reference';
+  src: string | null;
+  prompt: string;
+  ai: AiNodeState;
+};
+export type CanvasNodeData = TextNodeData | ImageNodeData | ReferenceNodeData;
 
-export type CanvasNode = Node<CanvasNodeData & Record<string, unknown>, 'text' | 'image'>;
+export type CanvasNodeType = 'text' | 'image' | 'reference';
+export type CanvasNode = Node<CanvasNodeData & Record<string, unknown>, CanvasNodeType>;
 export type CanvasEdge = Edge<{ relation: 'reference' }, 'reference'>;
 
 export type Alignment = 'left' | 'right' | 'centerX' | 'top' | 'bottom' | 'centerY';

@@ -1,8 +1,8 @@
-import { DEFAULT_NODE_SIZE } from './constants';
+import { DEFAULT_NODE_SIZE, nodeSizeKey } from './constants';
 import type { Alignment, CanvasNode } from './types';
 
 function sizeOf(node: CanvasNode) {
-  const fallback = DEFAULT_NODE_SIZE[node.type === 'image' ? 'image' : 'text'];
+  const fallback = DEFAULT_NODE_SIZE[nodeSizeKey(node.type)];
   return {
     width: node.width ?? node.measured?.width ?? fallback.width,
     height: node.height ?? node.measured?.height ?? fallback.height,

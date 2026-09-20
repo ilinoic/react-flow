@@ -19,12 +19,26 @@ const aiStateSchema = z.object({
 });
 
 const dataSchema = z.union([
-  z.object({ kind: z.literal('text'), text: z.string(), ai: aiStateSchema }),
+  z.object({
+    kind: z.literal('text'),
+    text: z.string(),
+    prompt: z.string().optional(),
+    referenceSrc: z.string().nullable().optional(),
+    ai: aiStateSchema,
+  }),
   z.object({
     kind: z.literal('image'),
     src: z.string().nullable(),
     storagePath: z.string().optional(),
     alt: z.string(),
+    prompt: z.string().optional(),
+    referenceSrc: z.string().nullable().optional(),
+    ai: aiStateSchema,
+  }),
+  z.object({
+    kind: z.literal('reference'),
+    src: z.string().nullable(),
+    prompt: z.string().optional(),
     ai: aiStateSchema,
   }),
 ]);
@@ -32,7 +46,7 @@ const dataSchema = z.union([
 const nodeSchema = z
   .object({
     id: z.string(),
-    type: z.enum(['text', 'image']),
+    type: z.enum(['text', 'image', 'reference']),
     position: positionSchema,
     width: z.number().optional(),
     height: z.number().optional(),

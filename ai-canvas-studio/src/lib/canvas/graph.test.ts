@@ -8,14 +8,21 @@ const text = (id: string, value: string): CanvasNode => ({
   id,
   type: 'text',
   position: { x: 0, y: 0 },
-  data: { kind: 'text', text: value, ai },
+  data: { kind: 'text', text: value, prompt: '', ai },
 });
 
 const image = (id: string, src: string | null): CanvasNode => ({
   id,
   type: 'image',
   position: { x: 0, y: 0 },
-  data: { kind: 'image', src, alt: id, ai },
+  data: { kind: 'image', src, alt: id, prompt: '', ai },
+});
+
+const reference = (id: string, src: string | null): CanvasNode => ({
+  id,
+  type: 'reference',
+  position: { x: 0, y: 0 },
+  data: { kind: 'reference', src, prompt: '', ai },
 });
 
 const edge = (source: string, target: string): CanvasEdge => ({
@@ -63,5 +70,16 @@ describe('resolveReferences', () => {
     const nodes = [text('a', '第一条'), text('b', '第二条')];
     const bundle = resolveReferences('n', nodes, [edge('a', 'n'), edge('b', 'n')]);
     expect(bundle.texts.map((item) => item.text)).toEqual(['第一条', '第二条']);
+  });
+
+  it('参考图片节点和图片节点一样提供参考图', () => {
+    const nodes = [reference('r1', 'data:image/png;base64,REF')];
+    const bundle = resolveReferences('n', nodes, [edge('r1', 'n')]);
+    expect(bundle.images.map((item) => item.src)).toEqual(['data:image/png;base64,REF']);
+  });
+
+  it('参考图片节点没有图时不计入参考', () => {
+    const nodes = [reference('r1', null)];
+    expect(resolveReferences('n', nodes, [edge('r1', 'n')]).images).toHaveLength(0);
   });
 });

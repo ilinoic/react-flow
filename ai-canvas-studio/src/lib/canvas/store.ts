@@ -7,7 +7,7 @@ import {
   type NodeChange,
   type Viewport,
 } from '@xyflow/react';
-import { DEFAULT_NODE_SIZE, HISTORY_LIMIT } from './constants';
+import { DEFAULT_NODE_SIZE, HISTORY_LIMIT, MIN_NODE_SIZE, nodeSizeKey } from './constants';
 import { alignNodes } from './alignment';
 import type {
   Alignment,
@@ -16,6 +16,7 @@ import type {
   CanvasNode,
   CanvasNodeData,
   ImageNodeData,
+  ReferenceNodeData,
   TextNodeData,
 } from './types';
 
@@ -27,7 +28,6 @@ export type CanvasStore = {
   nodes: CanvasNode[];
   edges: CanvasEdge[];
   viewport: Viewport;
-  aiPanelNodeId: string | null;
   past: Snapshot[];
   future: Snapshot[];
   commitHistory: () => void;
@@ -37,6 +37,7 @@ export type CanvasStore = {
   redo: () => void;
   addTextNode: (position?: { x: number; y: number }) => string;
   addImageNode: (position?: { x: number; y: number }) => string;
+  addReferenceNode: (position?: { x: number; y: number }) => string;
   updateNodeData: (id: string, patch: Partial<CanvasNodeData>, opts?: UpdateOpts) => void;
   removeNodes: (ids: string[]) => void;
   duplicateNode: (id: string) => string | null;
@@ -48,8 +49,6 @@ export type CanvasStore = {
   onEdgesChange: (changes: EdgeChange<CanvasEdge>[]) => void;
   setViewport: (viewport: Viewport) => void;
   setName: (name: string) => void;
-  openAiPanel: (nodeId: string) => void;
-  closeAiPanel: () => void;
   loadCanvas: (file: CanvasFile) => void;
   reset: () => void;
 };
@@ -87,7 +86,6 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => {
     nodes: [],
     edges: [],
     viewport: { x: 0, y: 0, zoom: 1 },
-    aiPanelNodeId: null,
     past: [],
     future: [],
 
@@ -122,7 +120,7 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => {
 
     addTextNode: (position = { x: 0, y: 0 }) => {
       const id = nextId('text');
-      const data: TextNodeData = { kind: 'text', text: '', ai: emptyAi() };
+      const data: TextNodeData = { kind: 'text', text: '', prompt: '', ai: emptyAi() };
       mutate((state) => ({
         nodes: [
           ...state.nodes.map((node) => ({ ...node, selected: false })),
@@ -142,7 +140,13 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => {
 
     addImageNode: (position = { x: 0, y: 0 }) => {
       const id = nextId('image');
-      const data: ImageNodeData = { kind: 'image', src: null, alt: '图片节点', ai: emptyAi() };
+      const data: ImageNodeData = {
+        kind: 'image',
+        src: null,
+        alt: '图片节点',
+        prompt: '',
+        ai: emptyAi(),
+      };
       mutate((state) => ({
         nodes: [
           ...state.nodes.map((node) => ({ ...node, selected: false })),
@@ -152,6 +156,26 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => {
             position,
             width: DEFAULT_NODE_SIZE.image.width,
             height: DEFAULT_NODE_SIZE.image.height,
+            selected: true,
+            data,
+          },
+        ],
+      }));
+      return id;
+    },
+
+    addReferenceNode: (position = { x: 0, y: 0 }) => {
+      const id = nextId('ref');
+      const data: ReferenceNodeData = { kind: 'reference', src: null, prompt: '', ai: emptyAi() };
+      mutate((state) => ({
+        nodes: [
+          ...state.nodes.map((node) => ({ ...node, selected: false })),
+          {
+            id,
+            type: 'reference',
+            position,
+            width: DEFAULT_NODE_SIZE.reference.width,
+            height: DEFAULT_NODE_SIZE.reference.height,
             selected: true,
             data,
           },
@@ -182,7 +206,7 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => {
     duplicateNode: (id) => {
       const node = get().nodes.find((item) => item.id === id);
       if (!node) return null;
-      const newId = nextId(node.type === 'image' ? 'image' : 'text');
+      const newId = nextId(node.type === 'text' ? 'text' : node.type === 'reference' ? 'ref' : 'image');
       mutate((state) => ({
         nodes: [
           ...state.nodes.map((item) => ({ ...item, selected: false })),
@@ -241,16 +265,22 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => {
 
     setName: (name) => set({ name }),
 
-    openAiPanel: (nodeId) => set({ aiPanelNodeId: nodeId }),
-
-    closeAiPanel: () => set({ aiPanelNodeId: null }),
-
     loadCanvas: (file) => set({
       name: file.name,
-      nodes: file.nodes ?? [],
+      // 旧画布里没有 prompt 字段，读进来时补齐，节点上才有可用的输入框。
+      // 旧画布里没有 prompt 字段，读进来时补齐；过小的节点抬到最小尺寸，
+      // 否则节点底部新加的提示词输入框会被挤没。
+      nodes: (file.nodes ?? []).map((node) => {
+        const min = MIN_NODE_SIZE[nodeSizeKey(node.type)];
+        return {
+          ...node,
+          width: Math.max(node.width ?? min.width, min.width),
+          height: Math.max(node.height ?? min.height, min.height),
+          data: { ...node.data, prompt: node.data.prompt ?? '' } as CanvasNodeData,
+        };
+      }),
       edges: file.edges ?? [],
       viewport: file.viewport ?? { x: 0, y: 0, zoom: 1 },
-      aiPanelNodeId: null,
       past: [],
       future: [],
     }),
@@ -260,7 +290,6 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => {
       nodes: [],
       edges: [],
       viewport: { x: 0, y: 0, zoom: 1 },
-      aiPanelNodeId: null,
       past: [],
       future: [],
     }),

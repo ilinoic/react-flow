@@ -132,6 +132,7 @@ export function CanvasToolbar({
       <span className="my-1 h-px w-8 bg-gray-200" />
       <ToolButton label="添加文本节点" onClick={() => useCanvasStore.getState().addTextNode(addPosition())} />
       <ToolButton label="添加图片节点" onClick={() => useCanvasStore.getState().addImageNode(addPosition())} />
+      <ToolButton label="添加参考图片节点" onClick={() => useCanvasStore.getState().addReferenceNode(addPosition())} />
       <ToolButton label="导入画布" onClick={() => fileInputRef.current?.click()} />
       <input
         ref={fileInputRef}

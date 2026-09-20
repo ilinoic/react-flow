@@ -17,7 +17,7 @@ const nodes: CanvasNode[] = [
     position: { x: 1, y: 2 },
     width: 240,
     height: 120,
-    data: { kind: 'text', text: '你好', ai },
+    data: { kind: 'text', text: '你好', prompt: '写一句问候', ai },
   },
 ];
 
@@ -55,6 +55,53 @@ describe('画布序列化', () => {
     const file = JSON.parse(serializeCanvasFile(buildCanvasFile({ name: 'x', nodes, edges: [], viewport })));
     delete file.nodes;
     expect(() => parseCanvasFile(JSON.stringify(file))).toThrow('画布 JSON 格式不正确');
+  });
+
+  it('节点上的提示词会跟画布一起保存与恢复', () => {
+    const file = buildCanvasFile({ name: '示例', nodes, edges: [], viewport });
+    const roundTrip = parseCanvasFile(serializeCanvasFile(file));
+    expect((roundTrip.nodes[0].data as { prompt?: string }).prompt).toBe('写一句问候');
+  });
+
+  it('旧画布里没有提示词的节点也能读进来', () => {
+    const file = JSON.parse(serializeCanvasFile(buildCanvasFile({ name: 'x', nodes, edges: [], viewport })));
+    delete file.nodes[0].data.prompt;
+    const roundTrip = parseCanvasFile(JSON.stringify(file));
+    expect(roundTrip.nodes[0].data.kind).toBe('text');
+  });
+
+  it('参考图片节点与节点自带参考图都能存下来', () => {
+    const withReferences: CanvasNode[] = [
+      {
+        id: 'r1',
+        type: 'reference',
+        position: { x: 0, y: 0 },
+        width: 240,
+        height: 300,
+        data: { kind: 'reference', src: 'data:image/png;base64,REF', prompt: '换个背景', ai },
+      },
+      {
+        id: 'i1',
+        type: 'image',
+        position: { x: 300, y: 0 },
+        width: 240,
+        height: 300,
+        data: {
+          kind: 'image',
+          src: null,
+          alt: '图片节点',
+          prompt: '证件照',
+          referenceSrc: 'data:image/png;base64,LOCAL',
+          ai,
+        },
+      },
+    ];
+
+    const file = buildCanvasFile({ name: '示例', nodes: withReferences, edges: [], viewport });
+    const roundTrip = parseCanvasFile(serializeCanvasFile(file));
+
+    expect((roundTrip.nodes[0].data as { src: string | null }).src).toBe('data:image/png;base64,REF');
+    expect((roundTrip.nodes[1].data as { referenceSrc?: string }).referenceSrc).toBe('data:image/png;base64,LOCAL');
   });
 
   it('文件名去掉不安全字符并带时间戳', () => {

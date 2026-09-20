@@ -20,6 +20,7 @@ function imageNode(src: string | null, messageImage?: string): CanvasNode {
       kind: 'image',
       src,
       alt: '图片节点',
+      prompt: '',
       ai: messageImage
         ? {
             messages: [

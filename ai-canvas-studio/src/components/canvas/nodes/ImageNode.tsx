@@ -7,6 +7,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { uploadCanvasImage } from '@/lib/canvas/upload';
 import { MIN_NODE_SIZE } from '@/lib/canvas/constants';
 import { UploadImageButton } from '../UploadImageButton';
+import { NodeAiPrompt } from '../NodeAiPrompt';
 import type { CanvasNode } from '@/lib/canvas/types';
 
 export function ImageNode({ id, data, selected }: NodeProps<CanvasNode>) {
@@ -16,7 +17,6 @@ export function ImageNode({ id, data, selected }: NodeProps<CanvasNode>) {
   const [error, setError] = useState<string | null>(null);
   const updateNodeData = useCanvasStore((state) => state.updateNodeData);
   const commitHistory = useCanvasStore((state) => state.commitHistory);
-  const openAiPanel = useCanvasStore((state) => state.openAiPanel);
 
   async function handleFile(file: File) {
     setBusy(true);
@@ -44,35 +44,25 @@ export function ImageNode({ id, data, selected }: NodeProps<CanvasNode>) {
       />
       <Handle type="target" position={Position.Left} />
       <Handle type="source" position={Position.Right} />
-      <button
-        type="button"
-        aria-label="打开 AI 对话框"
-        title="打开 AI 对话框"
-        onClick={(event) => {
-          event.stopPropagation();
-          openAiPanel(id);
-        }}
-        className="nodrag absolute -top-2 -right-2 z-10 rounded-full border border-gray-300 bg-white/95 px-1.5 py-0.5 text-[10px] text-gray-600 shadow hover:bg-gray-100"
-      >
-        AI
-      </button>
-      <div
-        data-testid="image-node-body"
-        onDoubleClick={() => openAiPanel(id)}
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => {
-          event.preventDefault();
-          const file = event.dataTransfer.files?.[0];
-          if (file) void handleFile(file);
-        }}
-        className="h-full w-full overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm"
-      >
-        {src ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt={alt} className="h-full w-full object-contain" draggable={false} />
-        ) : (
-          <UploadImageButton busy={busy} error={error} onPick={handleFile} />
-        )}
+      <div className="flex h-full w-full flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm">
+        <div
+          data-testid="image-node-body"
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => {
+            event.preventDefault();
+            const file = event.dataTransfer.files?.[0];
+            if (file) void handleFile(file);
+          }}
+          className="min-h-0 flex-1 overflow-hidden"
+        >
+          {src ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={src} alt={alt} className="h-full w-full object-contain" draggable={false} />
+          ) : (
+            <UploadImageButton busy={busy} error={error} onPick={handleFile} />
+          )}
+        </div>
+        <NodeAiPrompt nodeId={id} />
       </div>
     </>
   );

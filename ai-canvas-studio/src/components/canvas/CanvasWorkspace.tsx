@@ -22,12 +22,12 @@ import { createProject, loadProjectGraph, updateProject } from '@/lib/projects/a
 import { CanvasToolbar, type CanvasTool } from './CanvasToolbar';
 import { AlignmentBar } from './AlignmentBar';
 import { ContextMenu } from './ContextMenu';
-import { NodeAiPanel } from './NodeAiPanel';
 import { edgeTypes } from './edgeTypes';
 import { TextNode } from './nodes/TextNode';
 import { ImageNode } from './nodes/ImageNode';
+import { ReferenceNode } from './nodes/ReferenceNode';
 
-const nodeTypes = { text: TextNode, image: ImageNode };
+const nodeTypes = { text: TextNode, image: ImageNode, reference: ReferenceNode };
 
 type PaneMenu = { x: number; y: number; flow: { x: number; y: number } };
 type NodeMenu = { x: number; y: number; nodeId: string };
@@ -52,7 +52,6 @@ function Inner() {
   const nodes = useCanvasStore((state) => state.nodes);
   const edges = useCanvasStore((state) => state.edges);
   const name = useCanvasStore((state) => state.name);
-  const aiPanelNodeId = useCanvasStore((state) => state.aiPanelNodeId);
   const { screenToFlowPosition } = useReactFlow();
   const { fitView } = useReactFlow();
 
@@ -274,6 +273,10 @@ function Inner() {
               run: () => useCanvasStore.getState().addImageNode(paneMenu.flow),
             },
             {
+              label: '添加参考图片节点',
+              run: () => useCanvasStore.getState().addReferenceNode(paneMenu.flow),
+            },
+            {
               label: '全选',
               run: () =>
                 useCanvasStore.getState().onNodesChange(
@@ -298,8 +301,14 @@ function Inner() {
               run: () => useCanvasStore.getState().removeNodes([nodeMenu.nodeId]),
             },
             {
-              label: menuNode?.type === 'image' ? '用此图生成' : 'AI 对话框',
-              run: () => useCanvasStore.getState().openAiPanel(nodeMenu.nodeId),
+              label: '填写提示词',
+              run: () => {
+                document
+                  .querySelector<HTMLTextAreaElement>(
+                    `.react-flow__node[data-id="${nodeMenu.nodeId}"] textarea[aria-label="提示词"]`,
+                  )
+                  ?.focus();
+              },
             },
             {
               label: '断开全部连线',
@@ -318,13 +327,6 @@ function Inner() {
               run: () => useCanvasStore.getState().duplicateNode(nodeMenu.nodeId),
             },
           ]}
-        />
-      )}
-
-      {aiPanelNodeId && (
-        <NodeAiPanel
-          nodeId={aiPanelNodeId}
-          onClose={() => useCanvasStore.getState().closeAiPanel()}
         />
       )}
     </div>

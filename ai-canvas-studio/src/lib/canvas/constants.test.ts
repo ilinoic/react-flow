@@ -1,0 +1,17 @@
+import { describe, expect, it } from 'vitest';
+import { nodeSizeKey } from './constants';
+
+describe('nodeSizeKey', () => {
+  it('参考图片节点用自己的尺寸表', () => {
+    expect(nodeSizeKey('reference')).toBe('reference');
+  });
+
+  it('文本与图片节点各归各的', () => {
+    expect(nodeSizeKey('text')).toBe('text');
+    expect(nodeSizeKey('image')).toBe('image');
+  });
+
+  it('类型缺失时按文本节点处理', () => {
+    expect(nodeSizeKey(undefined)).toBe('text');
+  });
+});

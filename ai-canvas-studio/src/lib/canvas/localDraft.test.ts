@@ -15,7 +15,7 @@ const nodeWithImage: CanvasNode = {
   id: 'i1',
   type: 'image',
   position: { x: 0, y: 0 },
-  data: { kind: 'image', src: bigImage, alt: '图片节点', ai: { messages: [], status: 'idle' } },
+  data: { kind: 'image', src: bigImage, alt: '图片节点', prompt: '', ai: { messages: [], status: 'idle' } },
 };
 
 describe('本地草稿', () => {

@@ -31,10 +31,14 @@ export function resolveReferences(
       const value = source.data.text.trim();
       if (!value) continue;
       bundle.texts.push({ nodeId: source.id, text: value });
-    } else {
+    } else if (source.data.kind === 'image') {
       const src = source.data.src;
       if (!src) continue;
       bundle.images.push({ nodeId: source.id, src, alt: source.data.alt });
+    } else if (source.data.kind === 'reference') {
+      const src = source.data.src;
+      if (!src) continue;
+      bundle.images.push({ nodeId: source.id, src, alt: '参考图' });
     }
     bundle.sources.push(source.id);
   }

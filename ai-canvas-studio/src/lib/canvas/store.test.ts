@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useCanvasStore } from './store';
+import { MIN_NODE_SIZE } from './constants';
 
 const s = () => useCanvasStore.getState();
 
@@ -51,21 +52,64 @@ describe('画布状态仓库', () => {
     expect(s().past.length).toBeLessThanOrEqual(100);
   });
 
-  it('可以打开与关闭某个节点的 AI 对话框', () => {
-    const id = s().addTextNode({ x: 0, y: 0 });
-    expect(s().aiPanelNodeId).toBeNull();
+  it('新增节点自带空提示词，等待在节点上直接填写', () => {
+    const text = s().addTextNode({ x: 0, y: 0 });
+    const image = s().addImageNode({ x: 300, y: 0 });
 
-    s().openAiPanel(id);
-    expect(s().aiPanelNodeId).toBe(id);
-
-    s().closeAiPanel();
-    expect(s().aiPanelNodeId).toBeNull();
+    expect((s().nodes.find((node) => node.id === text)!.data as { prompt: string }).prompt).toBe('');
+    expect((s().nodes.find((node) => node.id === image)!.data as { prompt: string }).prompt).toBe('');
   });
 
-  it('重置画布会关掉对话框', () => {
-    const id = s().addTextNode({ x: 0, y: 0 });
-    s().openAiPanel(id);
-    s().reset();
-    expect(s().aiPanelNodeId).toBeNull();
+  it('读取旧画布时给缺少提示词的节点补上空提示词', () => {
+    s().loadCanvas({
+      version: 1,
+      name: '旧画布',
+      exportedAt: new Date().toISOString(),
+      viewport: { x: 0, y: 0, zoom: 1 },
+      nodes: [
+        {
+          id: 'text_old',
+          type: 'text',
+          position: { x: 0, y: 0 },
+          data: { kind: 'text', text: '旧内容', ai: { messages: [], status: 'idle' } },
+        },
+      ],
+      edges: [],
+    } as never);
+
+    expect((s().nodes[0].data as { prompt?: string }).prompt).toBe('');
+  });
+
+  it('读取旧画布时把过小的节点抬到最小尺寸，保证提示词输入框看得见', () => {
+    s().loadCanvas({
+      version: 1,
+      name: '旧画布',
+      exportedAt: new Date().toISOString(),
+      viewport: { x: 0, y: 0, zoom: 1 },
+      nodes: [
+        {
+          id: 'text_tiny',
+          type: 'text',
+          position: { x: 0, y: 0 },
+          width: 100,
+          height: 40,
+          data: { kind: 'text', text: '', prompt: '', ai: { messages: [], status: 'idle' } },
+        },
+      ],
+      edges: [],
+    } as never);
+
+    expect(s().nodes[0].width).toBeGreaterThanOrEqual(MIN_NODE_SIZE.text.width);
+    expect(s().nodes[0].height).toBeGreaterThanOrEqual(MIN_NODE_SIZE.text.height);
+  });
+
+  it('新增参考图片节点：类型是 reference，参考图为空', () => {
+    const id = s().addReferenceNode({ x: 0, y: 0 });
+    const node = s().nodes.find((item) => item.id === id)!;
+
+    expect(node.type).toBe('reference');
+    expect(node.data.kind).toBe('reference');
+    expect((node.data as { src: string | null }).src).toBeNull();
+    expect((node.data as { prompt: string }).prompt).toBe('');
   });
 });

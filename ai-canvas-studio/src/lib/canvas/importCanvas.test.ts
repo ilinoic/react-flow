@@ -11,7 +11,7 @@ const nodes: CanvasNode[] = [
     position: { x: 12, y: 24 },
     width: 240,
     height: 120,
-    data: { kind: 'text', text: '导入进来的文本', ai },
+    data: { kind: 'text', text: '导入进来的文本', prompt: '', ai },
   },
 ];
 

@@ -18,7 +18,7 @@ const node = (
   width,
   height,
   selected,
-  data: { kind: 'text', text: '', ai },
+  data: { kind: 'text', text: '', prompt: '', ai },
 });
 
 const positions = (nodes: CanvasNode[]) =>

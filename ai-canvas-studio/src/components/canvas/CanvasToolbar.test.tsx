@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CanvasToolbar } from './CanvasToolbar';
 import { useCanvasStore } from '@/lib/canvas/store';
+import { clipboardNodeCount } from '@/lib/canvas/clipboard';
 
 const s = () => useCanvasStore.getState();
 
@@ -115,5 +116,25 @@ describe('CanvasToolbar 快捷键', () => {
     expect(s().nodes.some((node) => node.selected)).toBe(false);
     expect(onFitView).not.toHaveBeenCalled();
     textarea.remove();
+  });
+
+  it('在输入框里复制文字后，节点剪贴板被清空，回到画布按 Ctrl+V 不会粘出旧节点', async () => {
+    const id = s().addTextNode({ x: 0, y: 0 });
+    s().onNodesChange([{ id, type: 'select', selected: true }]);
+    setup();
+
+    await userEvent.keyboard('{Control>}c{/Control}');
+    expect(clipboardNodeCount()).toBe(1);
+
+    const textarea = document.createElement('textarea');
+    document.body.appendChild(textarea);
+    textarea.focus();
+    await userEvent.keyboard('{Control>}c{/Control}');
+    textarea.remove();
+
+    expect(clipboardNodeCount()).toBe(0);
+
+    await userEvent.keyboard('{Control>}v{/Control}');
+    expect(s().nodes).toHaveLength(1);
   });
 });

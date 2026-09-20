@@ -34,6 +34,10 @@ export function clipboardNodeCount(): number {
   return payload?.nodes.length ?? 0;
 }
 
+export function clearClipboard(): void {
+  payload = null;
+}
+
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCanvasStore } from '@/lib/canvas/store';
 import { importCanvasFile } from '@/lib/canvas/importCanvas';
+import { clearClipboard } from '@/lib/canvas/clipboard';
 
 export type CanvasTool = 'select' | 'hand';
 
@@ -80,10 +81,17 @@ export function CanvasToolbar({
       const editing =
         !!target &&
         (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.isContentEditable);
-      if (editing) return;
+      const mod = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
+
+      if (editing) {
+        // 在输入框里复制/剪切文字，说明用户这会儿要的是文字：
+        // 把节点剪贴板清掉，免得回到画布按 Ctrl+V 时粘出上一次复制的节点。
+        if (mod && (key === 'c' || key === 'x')) clearClipboard();
+        return;
+      }
 
       const store = useCanvasStore.getState();
-      const mod = event.ctrlKey || event.metaKey;
 
       if (mod && event.key.toLowerCase() === 'c') {
         event.preventDefault();

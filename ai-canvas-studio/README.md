@@ -72,6 +72,12 @@ OpenAI 兼容协议下：无参考图走 `POST {baseUrl}/images/generations`，
 有参考图走 `POST {baseUrl}/images/edits`（multipart，多图按 `image[]`），
 文本走 `POST {baseUrl}/chat/completions`。要接别家协议时，只需扩展 `src/lib/ai/provider.ts`。
 
+通义千问（阿里云百炼）说明：官方 `compatible-mode` **不提供** `/images/generations`（实测返回 404），
+所以出图走百炼的原生异步接口——`POST {origin}/api/v1/services/aigc/text2image/image-synthesis`
+提交任务，再轮询 `GET {origin}/api/v1/tasks/{task_id}`，成功后把图片取回并内联成 data URL；
+文本仍走 `compatible-mode` 的 `/chat/completions`。千问原生接口暂不支持带参考图的图生图，
+这时会返回一句明确的中文提示，而不是静默失败。
+
 ## 部署到 Vercel
 
 1. 导入仓库，Root Directory 选 `ai-canvas-studio`。

@@ -65,9 +65,21 @@ describe('POST /api/ai/generate', () => {
 
   it('接受千问供应商的请求', async () => {
     getUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: [{ b64_json: 'QQQ' }] }), { status: 200 }),
-    );
+    const fetchMock = vi.fn(async (url: string | URL) => {
+      if (String(url).includes('image-synthesis')) {
+        return new Response(JSON.stringify({ output: { task_id: 't9' } }), { status: 200 });
+      }
+      if (String(url) === 'https://cdn.example.com/q.png') {
+        return new Response(new Uint8Array([7, 7]), {
+          status: 200,
+          headers: { 'content-type': 'image/png' },
+        });
+      }
+      return new Response(
+        JSON.stringify({ output: { task_status: 'SUCCEEDED', results: [{ url: 'https://cdn.example.com/q.png' }] } }),
+        { status: 200 },
+      );
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await POST(
@@ -79,9 +91,9 @@ describe('POST /api/ai/generate', () => {
 
     expect(response.status).toBe(200);
     expect(fetchMock.mock.calls[0][0]).toBe(
-      'https://dashscope.aliyuncs.com/compatible-mode/v1/images/generations',
+      'https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis',
     );
-    expect(String((await response.json()).imageSrc)).toContain('base64,QQQ');
+    expect(String((await response.json()).imageSrc)).toContain('base64,');
     vi.unstubAllGlobals();
   });
 

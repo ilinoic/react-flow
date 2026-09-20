@@ -71,6 +71,7 @@ export async function generateImage(
 ): Promise<{ imageSrc: string }> {
   const prompt = buildPrompt(input.prompt, input.texts);
   if (config.provider === 'mock') return { imageSrc: mockImageDataUrl(prompt) };
+  if (config.provider === 'qwen') return generateQwenImage(config, input);
 
   const base = config.baseUrl.replace(/\/+$/, '');
 
@@ -98,6 +99,103 @@ export async function generateImage(
     body: form,
   });
   return readImageResponse(response);
+}
+
+export type QwenImageOptions = { pollIntervalMs?: number; maxPolls?: number };
+
+function dashscopeOrigin(baseUrl: string): string {
+  try {
+    return new URL(baseUrl).origin;
+  } catch {
+    return 'https://dashscope.aliyuncs.com';
+  }
+}
+
+async function inlineRemoteImage(url: string): Promise<string> {
+  const response = await fetch(url);
+  if (!response.ok) return url;
+  const blob = await response.blob();
+  // 过大的图不内联，避免画布 JSON 膨胀
+  if (blob.size > 4 * 1024 * 1024) return url;
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = '';
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return `data:${blob.type || 'image/png'};base64,${btoa(binary)}`;
+}
+
+/**
+ * 通义千问（阿里云百炼）的出图走原生异步接口：
+ * 提交任务 → 轮询 /api/v1/tasks/{id} → 取回图片。
+ * 官方 compatible-mode 并不提供 /images/generations（实测 404）。
+ */
+export async function generateQwenImage(
+  config: AiConfig,
+  input: ImageInput,
+  options: QwenImageOptions = {},
+): Promise<{ imageSrc: string }> {
+  const { pollIntervalMs = 2000, maxPolls = 40 } = options;
+
+  if (input.images.length > 0) {
+    throw new Error(
+      '千问原生接口暂不支持带参考图的生成（图生图）：请去掉参考图，或改用支持 /images/edits 的兼容接口。',
+    );
+  }
+
+  const origin = dashscopeOrigin(config.baseUrl);
+  const prompt = buildPrompt(input.prompt, input.texts);
+
+  const submit = await fetch(`${origin}/api/v1/services/aigc/text2image/image-synthesis`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.apiKey}`,
+      'Content-Type': 'application/json',
+      'X-DashScope-Async': 'enable',
+    },
+    body: JSON.stringify({
+      model: config.imageModel,
+      input: { prompt },
+      parameters: { size: input.size, n: 1 },
+    }),
+  });
+
+  if (!submit.ok) {
+    throw new Error(`千问生图提交失败（${submit.status}）：${(await submit.text()).slice(0, 300)}`);
+  }
+
+  const submitted = (await submit.json()) as { output?: { task_id?: string; message?: string } };
+  const taskId = submitted.output?.task_id;
+  if (!taskId) {
+    throw new Error(`千问生图未返回 task_id：${submitted.output?.message ?? '响应结构异常'}`);
+  }
+
+  for (let attempt = 0; attempt < maxPolls; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+
+    const statusResponse = await fetch(`${origin}/api/v1/tasks/${taskId}`, {
+      headers: { Authorization: `Bearer ${config.apiKey}` },
+    });
+    if (!statusResponse.ok) {
+      throw new Error(`千问任务查询失败（${statusResponse.status}）：${(await statusResponse.text()).slice(0, 200)}`);
+    }
+
+    const task = (await statusResponse.json()) as {
+      output?: { task_status?: string; message?: string; results?: { url?: string }[] };
+    };
+    const status = task.output?.task_status;
+
+    if (status === 'SUCCEEDED') {
+      const url = task.output?.results?.[0]?.url;
+      if (!url) throw new Error('千问生图完成但没有返回图片地址');
+      return { imageSrc: await inlineRemoteImage(url) };
+    }
+    if (status && status !== 'PENDING' && status !== 'RUNNING') {
+      throw new Error(`千问生图失败：${task.output?.message ?? status}`);
+    }
+  }
+
+  throw new Error('千问生图超时：任务仍在处理中，请稍后重试');
 }
 
 export async function generateText(

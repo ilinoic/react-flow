@@ -114,10 +114,24 @@ describe('openai 兼容模式', () => {
     expect(text).toBe('结果');
   });
 
-  it('千问供应商同样走 OpenAI 兼容的图片接口', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: [{ b64_json: 'QQQ' }] }), { status: 200 }),
-    );
+  it('千问供应商改为走原生异步接口（不是 compatible-mode 的 /images/generations）', async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      if (String(url).includes('image-synthesis')) {
+        capturedBody = JSON.parse(String(init?.body));
+        return new Response(JSON.stringify({ output: { task_id: 't1' } }), { status: 200 });
+      }
+      if (String(url) === 'https://cdn.example.com/q.png') {
+        return new Response(new Uint8Array([9, 9]), {
+          status: 200,
+          headers: { 'content-type': 'image/png' },
+        });
+      }
+      return new Response(
+        JSON.stringify({ output: { task_status: 'SUCCEEDED', results: [{ url: 'https://cdn.example.com/q.png' }] } }),
+        { status: 200 },
+      );
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     const { imageSrc } = await generateImage(
@@ -126,10 +140,9 @@ describe('openai 兼容模式', () => {
     );
 
     expect(fetchMock.mock.calls[0][0]).toBe(
-      'https://dashscope.aliyuncs.com/compatible-mode/v1/images/generations',
+      'https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis',
     );
-    const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
-    expect(body.model).toBe('wanx2.1-t2i-turbo');
-    expect(imageSrc).toBe('data:image/png;base64,QQQ');
+    expect((capturedBody as { model?: string } | null)?.model).toBe('wanx2.1-t2i-turbo');
+    expect(imageSrc.startsWith('data:image/png;base64,')).toBe(true);
   });
 });

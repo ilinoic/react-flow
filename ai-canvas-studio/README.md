@@ -58,6 +58,16 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<publishable key>
 打开 `/settings` 填：供应商（模拟 / OpenAI 兼容）、Base URL、API Key、图片模型、文本模型、默认尺寸，
 点「测试连接」验证。配置只存在这台设备的浏览器里，不会写入数据库。
 
+内置三种供应商预设，选中后会自动填好地址与模型名（可再手改）：
+
+| 预设 | Base URL | 图片模型 | 文本模型 |
+| --- | --- | --- | --- |
+| 模拟模式 | — | — | — |
+| OpenAI 兼容接口 | `https://api.openai.com/v1` | `gpt-image-1` | `gpt-4o-mini` |
+| 通义千问 · 阿里云百炼 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `wanx2.1-t2i-turbo` | `qwen-plus` |
+
+只要在 API Key 里开始输入内容，供应商会自动从"模拟模式"切到 OpenAI 兼容协议，避免"填了 Key 却还在跑占位图"。
+
 OpenAI 兼容协议下：无参考图走 `POST {baseUrl}/images/generations`，
 有参考图走 `POST {baseUrl}/images/edits`（multipart，多图按 `image[]`），
 文本走 `POST {baseUrl}/chat/completions`。要接别家协议时，只需扩展 `src/lib/ai/provider.ts`。

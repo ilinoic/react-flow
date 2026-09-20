@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { generateImage, generateText } from '@/lib/ai/provider';
 
 const configSchema = z.object({
-  provider: z.enum(['openai-compatible', 'mock']),
+  provider: z.enum(['openai-compatible', 'mock', 'qwen']),
   baseUrl: z.string(),
   apiKey: z.string(),
   imageModel: z.string(),

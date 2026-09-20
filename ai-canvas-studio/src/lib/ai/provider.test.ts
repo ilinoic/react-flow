@@ -113,4 +113,23 @@ describe('openai 兼容模式', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('https://api.test/v1/chat/completions');
     expect(text).toBe('结果');
   });
+
+  it('千问供应商同样走 OpenAI 兼容的图片接口', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: [{ b64_json: 'QQQ' }] }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { imageSrc } = await generateImage(
+      { ...openAiConfig, provider: 'qwen', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', imageModel: 'wanx2.1-t2i-turbo' },
+      { prompt: '一只猫', texts: [], images: [], size: '1024*1024' },
+    );
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      'https://dashscope.aliyuncs.com/compatible-mode/v1/images/generations',
+    );
+    const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
+    expect(body.model).toBe('wanx2.1-t2i-turbo');
+    expect(imageSrc).toBe('data:image/png;base64,QQQ');
+  });
 });

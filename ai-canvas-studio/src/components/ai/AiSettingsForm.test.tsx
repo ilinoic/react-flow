@@ -31,4 +31,18 @@ describe('AiSettingsForm', () => {
     expect(saved.apiKey).toBe('sk-abc');
     await expect(screen.findByText('已保存到本机浏览器')).resolves.toBeTruthy();
   });
+
+  it('选择通义千问会自动填好官方地址与模型名，并保留已填的 Key', async () => {
+    render(<AiSettingsForm />);
+
+    await userEvent.type(screen.getByLabelText('API Key'), 'sk-abc');
+    await userEvent.selectOptions(screen.getByLabelText('供应商'), 'qwen');
+
+    expect((screen.getByLabelText('Base URL') as HTMLInputElement).value).toBe(
+      'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    );
+    expect((screen.getByLabelText('文本模型') as HTMLInputElement).value).toMatch(/^qwen/);
+    expect((screen.getByLabelText('图片模型') as HTMLInputElement).value).toMatch(/^wanx/);
+    expect((screen.getByLabelText('API Key') as HTMLInputElement).value).toBe('sk-abc');
+  });
 });

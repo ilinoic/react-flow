@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   AI_SETTINGS_KEY,
   DEFAULT_AI_SETTINGS,
+  PROVIDER_PRESETS,
   isAiConfigured,
   loadAiSettings,
   saveAiSettings,
@@ -42,5 +43,18 @@ describe('AI 设置读写', () => {
     expect(
       isAiConfigured({ ...DEFAULT_AI_SETTINGS, provider: 'openai-compatible', apiKey: '' }),
     ).toBe(false);
+  });
+
+  it('内置通义千问预设：地址与模型名都给出', () => {
+    const qwen = PROVIDER_PRESETS.qwen;
+    expect(qwen.baseUrl).toBe('https://dashscope.aliyuncs.com/compatible-mode/v1');
+    expect(qwen.textModel).toMatch(/^qwen/);
+    expect(qwen.imageModel).toMatch(/^wanx/);
+    expect(qwen.label).toContain('千问');
+  });
+
+  it('能读出用千问供应商保存的配置', () => {
+    saveAiSettings({ ...DEFAULT_AI_SETTINGS, provider: 'qwen', ...PROVIDER_PRESETS.qwen, apiKey: 'sk-x' } as never);
+    expect(loadAiSettings().provider).toBe('qwen');
   });
 });

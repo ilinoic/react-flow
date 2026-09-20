@@ -3,12 +3,13 @@
 import { useState, useSyncExternalStore } from 'react';
 import {
   DEFAULT_AI_SETTINGS,
+  PROVIDER_PRESETS,
   getAiSettingsServerSnapshot,
   getAiSettingsSnapshot,
   saveAiSettings,
   subscribeAiSettings,
 } from '@/lib/ai/settings';
-import type { AiConfig } from '@/lib/ai/types';
+import type { AiConfig, AiProvider } from '@/lib/ai/types';
 
 const FIELDS: { key: keyof AiConfig; label: string; placeholder?: string; secret?: boolean }[] = [
   { key: 'baseUrl', label: 'Base URL', placeholder: 'https://api.openai.com/v1' },
@@ -47,6 +48,20 @@ export function AiSettingsForm() {
     setStatus('已保存到本机浏览器');
   }
 
+  function onProviderChange(provider: AiProvider) {
+    setDraft(() => {
+      const preset = PROVIDER_PRESETS[provider];
+      return {
+        ...config,
+        provider,
+        baseUrl: preset.baseUrl,
+        imageModel: preset.imageModel,
+        textModel: preset.textModel,
+        imageSize: preset.imageSize,
+      };
+    });
+  }
+
   async function onTest() {
     setTesting(true);
     setStatus(null);
@@ -78,11 +93,14 @@ export function AiSettingsForm() {
         <select
           aria-label="供应商"
           value={config.provider}
-          onChange={(event) => update('provider', event.target.value as AiConfig['provider'])}
+          onChange={(event) => onProviderChange(event.target.value as AiProvider)}
           className="rounded border border-gray-300 px-3 py-2"
         >
-          <option value="mock">模拟模式（不联网，返回占位图）</option>
-          <option value="openai-compatible">OpenAI 兼容接口（自定义）</option>
+          {(Object.keys(PROVIDER_PRESETS) as AiProvider[]).map((key) => (
+            <option key={key} value={key}>
+              {PROVIDER_PRESETS[key].label}
+            </option>
+          ))}
         </select>
       </label>
 

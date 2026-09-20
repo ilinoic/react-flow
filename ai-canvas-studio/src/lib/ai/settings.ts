@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { AiConfig } from './types';
+import type { AiConfig, AiProvider } from './types';
 
 export const AI_SETTINGS_KEY = 'ai-canvas:settings';
 
@@ -12,8 +12,40 @@ export const DEFAULT_AI_SETTINGS: AiConfig = {
   imageSize: '1024x1024',
 };
 
+export type ProviderPreset = {
+  label: string;
+  baseUrl: string;
+  imageModel: string;
+  textModel: string;
+  imageSize: string;
+};
+
+export const PROVIDER_PRESETS: Record<AiProvider, ProviderPreset> = {
+  mock: {
+    label: '模拟模式（不联网，出占位图）',
+    baseUrl: 'https://api.openai.com/v1',
+    imageModel: 'gpt-image-1',
+    textModel: 'gpt-4o-mini',
+    imageSize: '1024x1024',
+  },
+  'openai-compatible': {
+    label: 'OpenAI 兼容接口（自定义地址）',
+    baseUrl: 'https://api.openai.com/v1',
+    imageModel: 'gpt-image-1',
+    textModel: 'gpt-4o-mini',
+    imageSize: '1024x1024',
+  },
+  qwen: {
+    label: '通义千问 · 阿里云百炼',
+    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    imageModel: 'wanx2.1-t2i-turbo',
+    textModel: 'qwen-plus',
+    imageSize: '1024*1024',
+  },
+};
+
 const schema = z.object({
-  provider: z.enum(['openai-compatible', 'mock']),
+  provider: z.enum(['openai-compatible', 'mock', 'qwen']),
   baseUrl: z.string(),
   apiKey: z.string(),
   imageModel: z.string(),

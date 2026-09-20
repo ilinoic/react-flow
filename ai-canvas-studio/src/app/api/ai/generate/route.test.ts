@@ -63,6 +63,28 @@ describe('POST /api/ai/generate', () => {
     expect(String((await response.json()).text)).toContain('猫');
   });
 
+  it('接受千问供应商的请求', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: [{ b64_json: 'QQQ' }] }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await POST(
+      makeRequest({
+        ...validBody,
+        config: { ...validBody.config, provider: 'qwen', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', imageModel: 'wanx2.1-t2i-turbo' },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      'https://dashscope.aliyuncs.com/compatible-mode/v1/images/generations',
+    );
+    expect(String((await response.json()).imageSrc)).toContain('base64,QQQ');
+    vi.unstubAllGlobals();
+  });
+
   it('上游失败时返回 502 与可读错误', async () => {
     getUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('bad key', { status: 401 })));

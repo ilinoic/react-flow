@@ -80,14 +80,99 @@ describe('generateQwenImage（千问原生异步接口）', () => {
     ).rejects.toThrow(/超时/);
   });
 
-  it('带参考图时给出明确的中文说明', async () => {
-    await expect(
-      generateQwenImage(
-        qwenConfig,
-        { prompt: '改造', texts: [], images: [{ name: 'n1', dataUrl: 'data:image/png;base64,AAA' }], size: '1024*1024' },
-        { pollIntervalMs: 1, maxPolls: 1 },
-      ),
-    ).rejects.toThrow(/参考图/);
+  it('带参考图时改走图像编辑接口，Base64 直接当 base_image_url', async () => {
+    const calls: string[] = [];
+    const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      calls.push(`${init?.method ?? 'GET'} ${String(url)}`);
+      if (String(url).includes('/services/aigc/image2image/image-synthesis')) {
+        return json({ output: { task_id: 'edit-1', task_status: 'PENDING' } });
+      }
+      if (String(url).includes('/api/v1/tasks/edit-1')) {
+        return json({ output: { task_status: 'SUCCEEDED', results: [{ url: 'https://cdn.example.com/out.png' }] } });
+      }
+      if (String(url) === 'https://cdn.example.com/out.png') {
+        return new Response(new Uint8Array([9, 9]), {
+          status: 200,
+          headers: { 'content-type': 'image/png' },
+        });
+      }
+      throw new Error(`unexpected url ${String(url)}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await generateQwenImage(
+      qwenConfig,
+      {
+        prompt: '把背景换成蓝色',
+        texts: [],
+        images: [{ name: 'n1', dataUrl: 'data:image/png;base64,AAA' }],
+        size: '1024*1024',
+      },
+      { pollIntervalMs: 1, maxPolls: 3 },
+    );
+
+    expect(calls[0]).toContain('/services/aigc/image2image/image-synthesis');
+    const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
+    // 文生图模型不能做编辑，自动换成图像编辑模型
+    expect(body.model).toBe('wanx2.1-imageedit');
+    expect(body.input.function).toBe('description_edit');
+    expect(body.input.base_image_url).toBe('data:image/png;base64,AAA');
+    expect(body.input.prompt).toContain('把背景换成蓝色');
+    expect(result.imageSrc.startsWith('data:image/png;base64,')).toBe(true);
+  });
+
+  it('图片模型已经是图像编辑模型时沿用用户的选择', async () => {
+    let submitted: { model?: string } = {};
+    const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      if (String(url).includes('image2image')) {
+        submitted = JSON.parse(String(init?.body));
+        return json({ output: { task_id: 'edit-2' } });
+      }
+      if (String(url).includes('/api/v1/tasks/edit-2')) {
+        return json({ output: { task_status: 'SUCCEEDED', results: [{ url: 'https://cdn.example.com/b.png' }] } });
+      }
+      return new Response(new Uint8Array([1]), { status: 200, headers: { 'content-type': 'image/png' } });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await generateQwenImage(
+      { ...qwenConfig, imageModel: 'wanx2.1-imageedit' },
+      { prompt: '改成水彩', texts: [], images: [{ name: 'n1', dataUrl: 'data:image/png;base64,AAA' }], size: '1024*1024' },
+      { pollIntervalMs: 1, maxPolls: 3 },
+    );
+
+    expect(submitted.model).toBe('wanx2.1-imageedit');
+  });
+
+  it('多张参考图时只把第一张作为编辑底图', async () => {
+    let submitted: { input?: { base_image_url?: string } } = {};
+    const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      if (String(url).includes('image2image')) {
+        submitted = JSON.parse(String(init?.body));
+        return json({ output: { task_id: 'edit-3' } });
+      }
+      if (String(url).includes('/api/v1/tasks/edit-3')) {
+        return json({ output: { task_status: 'SUCCEEDED', results: [{ url: 'https://cdn.example.com/c.png' }] } });
+      }
+      return new Response(new Uint8Array([1]), { status: 200, headers: { 'content-type': 'image/png' } });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await generateQwenImage(
+      qwenConfig,
+      {
+        prompt: '合成',
+        texts: [],
+        images: [
+          { name: 'n1', dataUrl: 'data:image/png;base64,FIRST' },
+          { name: 'n2', dataUrl: 'data:image/png;base64,SECOND' },
+        ],
+        size: '1024*1024',
+      },
+      { pollIntervalMs: 1, maxPolls: 3 },
+    );
+
+    expect(submitted.input?.base_image_url).toBe('data:image/png;base64,FIRST');
   });
 
   it('提交被拒绝时抛出上游错误', async () => {

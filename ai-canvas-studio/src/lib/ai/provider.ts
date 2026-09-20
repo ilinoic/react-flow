@@ -129,6 +129,9 @@ async function inlineRemoteImage(url: string): Promise<string> {
  * 通义千问（阿里云百炼）的出图走原生异步接口：
  * 提交任务 → 轮询 /api/v1/tasks/{id} → 取回图片。
  * 官方 compatible-mode 并不提供 /images/generations（实测 404）。
+ *
+ * 带参考图时改走「万相-通用图像编辑」：同样是异步任务，
+ * base_image_url 直接吃 data URL（官方文档：支持 Base64 编码数据）。
  */
 export async function generateQwenImage(
   config: AiConfig,
@@ -136,28 +139,38 @@ export async function generateQwenImage(
   options: QwenImageOptions = {},
 ): Promise<{ imageSrc: string }> {
   const { pollIntervalMs = 2000, maxPolls = 40 } = options;
-
-  if (input.images.length > 0) {
-    throw new Error(
-      '千问原生接口暂不支持带参考图的生成（图生图）：请去掉参考图，或改用支持 /images/edits 的兼容接口。',
-    );
-  }
-
   const origin = dashscopeOrigin(config.baseUrl);
   const prompt = buildPrompt(input.prompt, input.texts);
 
-  const submit = await fetch(`${origin}/api/v1/services/aigc/text2image/image-synthesis`, {
+  const editModel = /t2i|text2image/.test(config.imageModel) ? 'wanx2.1-imageedit' : config.imageModel;
+  const withReference = input.images.length > 0;
+  const path = withReference
+    ? '/api/v1/services/aigc/image2image/image-synthesis'
+    : '/api/v1/services/aigc/text2image/image-synthesis';
+  const body = withReference
+    ? {
+        model: editModel,
+        input: {
+          function: 'description_edit',
+          prompt,
+          base_image_url: input.images[0].dataUrl,
+        },
+        parameters: { n: 1 },
+      }
+    : {
+        model: config.imageModel,
+        input: { prompt },
+        parameters: { size: input.size, n: 1 },
+      };
+
+  const submit = await fetch(`${origin}${path}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${config.apiKey}`,
       'Content-Type': 'application/json',
       'X-DashScope-Async': 'enable',
     },
-    body: JSON.stringify({
-      model: config.imageModel,
-      input: { prompt },
-      parameters: { size: input.size, n: 1 },
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!submit.ok) {

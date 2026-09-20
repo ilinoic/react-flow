@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useReactFlow } from '@xyflow/react';
 import { useCanvasStore } from './store';
 import { resolveReferences } from './graph';
 import { loadAiSettings } from '@/lib/ai/settings';
@@ -32,6 +33,7 @@ export function useNodeGeneration(nodeId: string) {
   const nodes = useCanvasStore((state) => state.nodes);
   const edges = useCanvasStore((state) => state.edges);
   const updateNodeData = useCanvasStore((state) => state.updateNodeData);
+  const { fitView } = useReactFlow();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,6 +78,9 @@ export function useNodeGeneration(nodeId: string) {
       };
       const createdId = store.addImageNode(offset);
       store.updateNodeData(createdId, { src: imageSrc ?? null, ai } as never);
+      // 结果节点可能落在当前视野外（源节点右边再往下排），把它拉进来看得见，
+      // 否则用户以为「点了生成没反应」。
+      void fitView({ nodes: [{ id: createdId }], duration: 300, padding: 0.4, maxZoom: 1 });
       // 参考图节点只保留对话记录，参考图本身不动。
       updateNodeData(nodeId, { ai } as never, { history: false });
       return;

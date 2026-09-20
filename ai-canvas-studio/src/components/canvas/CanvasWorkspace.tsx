@@ -254,7 +254,8 @@ function Inner() {
         proOptions={{ hideAttribution: true }}
       >
         <Background variant={BackgroundVariant.Dots} gap={GRID_SIZE} size={1} />
-        <Controls />
+        {/* 左上角工具栏会盖住默认的左下角控件，往右挪开，免得点到「清空画布」。 */}
+        <Controls style={{ left: 80 }} />
         <MiniMap pannable zoomable />
       </ReactFlow>
 

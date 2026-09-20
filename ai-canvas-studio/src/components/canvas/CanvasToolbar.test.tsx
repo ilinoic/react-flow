@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CanvasToolbar } from './CanvasToolbar';
 import { useCanvasStore } from '@/lib/canvas/store';
@@ -22,6 +22,24 @@ function setup() {
 
 describe('CanvasToolbar 快捷键', () => {
   beforeEach(() => s().reset());
+  afterEach(() => vi.useRealTimers());
+
+  it('清空的二次确认会自动取消，避免过一会儿误点真的清空画布', async () => {
+    vi.useFakeTimers();
+    s().addTextNode({ x: 0, y: 0 });
+    setup();
+
+    fireEvent.click(screen.getByRole('button', { name: '清空画布' }));
+    expect(screen.getByText('再点一次确认')).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    expect(screen.queryByText('再点一次确认')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '清空画布' }));
+    expect(s().nodes).toHaveLength(1);
+  });
 
   it('Ctrl+A 全选所有节点', async () => {
     s().addTextNode({ x: 0, y: 0 });

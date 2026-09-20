@@ -57,6 +57,13 @@ export function CanvasToolbar({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const selectedIds = nodes.filter((node) => node.selected).map((node) => node.id);
 
+  // 二次确认只给几秒，避免过一会儿再点一下就真把画布清空。
+  useEffect(() => {
+    if (!confirmingClear) return;
+    const timer = setTimeout(() => setConfirmingClear(false), 4000);
+    return () => clearTimeout(timer);
+  }, [confirmingClear]);
+
   async function onImportFile(file: File) {
     const result = await importCanvasFile(file);
     if (!result.ok) {

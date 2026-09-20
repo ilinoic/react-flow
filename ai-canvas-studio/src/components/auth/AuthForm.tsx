@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { signInSchema, signUpSchema } from '@/lib/auth/validation';
@@ -14,6 +15,9 @@ export function AuthForm({ mode }: { mode: 'signin' | 'signup' }) {
   const params = useSearchParams();
 
   const next = params.get('next') ?? '/canvas';
+  const other = mode === 'signin'
+    ? { hint: '还没有账号？', label: '去注册', href: `/signup?next=${encodeURIComponent(next)}` }
+    : { hint: '已有账号？', label: '去登录', href: `/login?next=${encodeURIComponent(next)}` };
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -120,6 +124,13 @@ export function AuthForm({ mode }: { mode: 'signin' | 'signup' }) {
       </button>
 
       {message && <p role="status" className="text-sm text-gray-700">{message}</p>}
+
+      <p className="text-center text-sm text-gray-500">
+        {other.hint}
+        <Link href={other.href} className="ml-1 text-gray-900 underline underline-offset-2">
+          {other.label}
+        </Link>
+      </p>
     </form>
   );
 }

@@ -9,6 +9,7 @@ import {
 } from '@xyflow/react';
 import { DEFAULT_NODE_SIZE, HISTORY_LIMIT, MIN_NODE_SIZE, nodeSizeKey } from './constants';
 import { alignNodes } from './alignment';
+import { findFreeSpot } from './placement';
 import type {
   Alignment,
   CanvasEdge,
@@ -121,13 +122,14 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => {
     addTextNode: (position = { x: 0, y: 0 }) => {
       const id = nextId('text');
       const data: TextNodeData = { kind: 'text', text: '', prompt: '', ai: emptyAi() };
+      const spot = findFreeSpot(get().nodes, position, DEFAULT_NODE_SIZE.text);
       mutate((state) => ({
         nodes: [
           ...state.nodes.map((node) => ({ ...node, selected: false })),
           {
             id,
             type: 'text',
-            position,
+            position: spot,
             width: DEFAULT_NODE_SIZE.text.width,
             height: DEFAULT_NODE_SIZE.text.height,
             selected: true,
@@ -147,13 +149,14 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => {
         prompt: '',
         ai: emptyAi(),
       };
+      const spot = findFreeSpot(get().nodes, position, DEFAULT_NODE_SIZE.image);
       mutate((state) => ({
         nodes: [
           ...state.nodes.map((node) => ({ ...node, selected: false })),
           {
             id,
             type: 'image',
-            position,
+            position: spot,
             width: DEFAULT_NODE_SIZE.image.width,
             height: DEFAULT_NODE_SIZE.image.height,
             selected: true,
@@ -167,13 +170,14 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => {
     addReferenceNode: (position = { x: 0, y: 0 }) => {
       const id = nextId('ref');
       const data: ReferenceNodeData = { kind: 'reference', src: null, prompt: '', ai: emptyAi() };
+      const spot = findFreeSpot(get().nodes, position, DEFAULT_NODE_SIZE.reference);
       mutate((state) => ({
         nodes: [
           ...state.nodes.map((node) => ({ ...node, selected: false })),
           {
             id,
             type: 'reference',
-            position,
+            position: spot,
             width: DEFAULT_NODE_SIZE.reference.width,
             height: DEFAULT_NODE_SIZE.reference.height,
             selected: true,

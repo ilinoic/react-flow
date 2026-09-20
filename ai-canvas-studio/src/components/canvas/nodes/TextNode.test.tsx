@@ -59,6 +59,17 @@ describe('TextNode', () => {
     expect(screen.getByLabelText('文本节点内容')).toBeInTheDocument();
   });
 
+  it('单击正文也能直接输入，不用先双击', async () => {
+    setup();
+    await userEvent.click(screen.getByTestId('text-node-body'));
+    expect(screen.getByLabelText('文本节点内容')).toBeInTheDocument();
+  });
+
+  it('空节点上写着提示，告诉用户点哪里输入', () => {
+    setup();
+    expect(screen.getByText(/点一下这里就能输入/)).toBeInTheDocument();
+  });
+
   it('输入内容并失焦后写回 store 且可撤销', async () => {
     const id = setup();
     await userEvent.dblClick(screen.getByTestId('text-node-body'));

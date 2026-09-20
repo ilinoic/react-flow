@@ -37,6 +37,11 @@ export function TextNode({ id, data, selected }: NodeProps<CanvasNode>) {
       <div className="flex h-full w-full flex-col overflow-hidden rounded-lg border border-gray-300 bg-white text-sm text-gray-900 shadow-sm">
         <div
           data-testid="text-node-body"
+          onClick={() => {
+            if (editing) return;
+            setDraft(text);
+            setEditing(true);
+          }}
           onDoubleClick={() => {
             setDraft(text);
             setEditing(true);
@@ -60,7 +65,9 @@ export function TextNode({ id, data, selected }: NodeProps<CanvasNode>) {
               className="h-full w-full resize-none border-none bg-transparent outline-none"
             />
           ) : (
-            <p className="whitespace-pre-wrap break-words">{text}</p>
+            <p className="whitespace-pre-wrap break-words">
+              {text || <span className="text-gray-400">点一下这里就能输入</span>}
+            </p>
           )}
         </div>
         {/* 文本节点出的是文字，参考图只有出图时才用得上，所以这里不放那一格。 */}

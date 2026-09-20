@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNodeGeneration } from '@/lib/canvas/useNodeGeneration';
 import { toReferenceImageDataUrl } from '@/lib/canvas/referenceImage';
 
@@ -28,6 +28,14 @@ export function NodeAiPrompt({
     resultToNewNode,
   } = useNodeGeneration(nodeId);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // 中文输入法组词期间先把内容留在本地，组词结束再写进画布：
+  // 否则每敲一个字母都写一次全局状态，组词会被打断，看起来就是「打不进字」。
+  const composing = useRef(false);
+  const [draft, setDraft] = useState(prompt);
+
+  useEffect(() => {
+    if (!composing.current) setDraft(prompt);
+  }, [prompt]);
 
   async function pickReference(file: File) {
     setReferenceSrc(await toReferenceImageDataUrl(file));
@@ -80,9 +88,20 @@ export function NodeAiPrompt({
 
       <textarea
         aria-label="提示词"
-        value={prompt}
+        value={draft}
         placeholder="输入提示词…"
-        onChange={(event) => setPrompt(event.target.value)}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          if (!composing.current) setPrompt(event.target.value);
+        }}
+        onCompositionStart={() => {
+          composing.current = true;
+        }}
+        onCompositionEnd={(event) => {
+          composing.current = false;
+          setDraft(event.currentTarget.value);
+          setPrompt(event.currentTarget.value);
+        }}
         className="nowheel h-9 w-full resize-none rounded border border-gray-300 bg-white px-1.5 py-1 text-xs leading-4 text-gray-900 outline-none focus:border-gray-500"
       />
 

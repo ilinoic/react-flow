@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ReactFlowProvider } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
@@ -200,5 +200,20 @@ describe('ImageNode', () => {
     await userEvent.click(await screen.findByRole('button', { name: '移除参考图' }));
 
     expect(screen.getByLabelText('上传参考图')).toBeInTheDocument();
+  });
+
+  it('中文输入法组词期间不把半成品写进画布，组词结束才落库', async () => {
+    const id = setup();
+    const input = screen.getByLabelText('提示词');
+
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: 'shui' } });
+    expect((s().nodes.find((item) => item.id === id)!.data as { prompt: string }).prompt).toBe('');
+
+    fireEvent.change(input, { target: { value: '水' } });
+    expect((s().nodes.find((item) => item.id === id)!.data as { prompt: string }).prompt).toBe('');
+
+    fireEvent.compositionEnd(input, { target: { value: '水彩' } });
+    expect((s().nodes.find((item) => item.id === id)!.data as { prompt: string }).prompt).toBe('水彩');
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nodeSizeKey } from './constants';
+import { nodeIdPrefix, nodeSizeKey } from './constants';
 
 describe('nodeSizeKey', () => {
   it('参考图片节点用自己的尺寸表', () => {
@@ -13,5 +13,17 @@ describe('nodeSizeKey', () => {
 
   it('类型缺失时按文本节点处理', () => {
     expect(nodeSizeKey(undefined)).toBe('text');
+  });
+});
+
+describe('nodeIdPrefix', () => {
+  it('三种节点各有前缀', () => {
+    expect(nodeIdPrefix('text')).toBe('text');
+    expect(nodeIdPrefix('image')).toBe('image');
+    expect(nodeIdPrefix('reference')).toBe('ref');
+  });
+
+  it('类型缺失时按文本节点处理', () => {
+    expect(nodeIdPrefix(undefined)).toBe('text');
   });
 });

@@ -63,6 +63,12 @@ export function useNodeGeneration(nodeId: string) {
     updateNodeData(nodeId, { referenceSrc: value } as never);
   }
 
+  const aiOpen = node?.data.aiOpen ?? true;
+
+  function setAiOpen(value: boolean) {
+    updateNodeData(nodeId, { aiOpen: value } as never);
+  }
+
   /** 出图节点一律把结果写回自己，不再另外新建节点。 */
   function applyResult(aiMessages: AiMessage[], imageSrc?: string, text?: string) {
     const ai = { messages: aiMessages, status: 'idle' as const };
@@ -140,6 +146,8 @@ export function useNodeGeneration(nodeId: string) {
     setPrompt,
     referenceSrc: ownReferenceSrc,
     setReferenceSrc,
+    aiOpen,
+    setAiOpen,
     effectivePrompt,
     canGenerate,
     busy,

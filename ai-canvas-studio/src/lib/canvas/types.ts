@@ -20,6 +20,10 @@ export type TextNodeData = {
   prompt: string;
   /** 节点自带的参考图，不参与生成结果的写回。 */
   referenceSrc?: string | null;
+  /** 锁住的节点拖不动，避免排好版之后手滑挪走。 */
+  locked?: boolean;
+  /** 节点底部的 AI 对话框是否展开。 */
+  aiOpen?: boolean;
   ai: AiNodeState;
 };
 export type ImageNodeData = {
@@ -29,6 +33,8 @@ export type ImageNodeData = {
   alt: string;
   prompt: string;
   referenceSrc?: string | null;
+  locked?: boolean;
+  aiOpen?: boolean;
   ai: AiNodeState;
 };
 /** 参考图片节点：只放参考素材，生成的结果落到旁边新节点。 */
@@ -36,6 +42,8 @@ export type ReferenceNodeData = {
   kind: 'reference';
   src: string | null;
   prompt: string;
+  locked?: boolean;
+  aiOpen?: boolean;
   ai: AiNodeState;
 };
 export type CanvasNodeData = TextNodeData | ImageNodeData | ReferenceNodeData;

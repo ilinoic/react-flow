@@ -112,4 +112,62 @@ describe('画布状态仓库', () => {
     expect((node.data as { src: string | null }).src).toBeNull();
     expect((node.data as { prompt: string }).prompt).toBe('');
   });
+
+  it('复制选中节点后粘贴出一份副本', () => {
+    const id = s().addTextNode({ x: 0, y: 0 });
+    s().onNodesChange([{ id, type: 'select', selected: true }]);
+
+    expect(s().copySelected()).toBe(1);
+    const pasted = s().pasteClipboard();
+
+    expect(pasted).toHaveLength(1);
+    expect(s().nodes).toHaveLength(2);
+    expect(s().nodes.find((node) => node.id === pasted[0])!.selected).toBe(true);
+  });
+
+  it('粘贴会把被复制节点之间的连线一起带回来', () => {
+    const a = s().addTextNode({ x: 0, y: 0 });
+    const b = s().addImageNode({ x: 300, y: 0 });
+    s().onConnect({ source: a, target: b, sourceHandle: null, targetHandle: null });
+    s().onNodesChange(s().nodes.map((node) => ({ id: node.id, type: 'select' as const, selected: true })));
+
+    s().copySelected();
+    const [pastedA, pastedB] = s().pasteClipboard();
+
+    expect(s().edges).toHaveLength(2);
+    expect(s().edges.some((edge) => edge.source === pastedA && edge.target === pastedB)).toBe(true);
+  });
+
+  it('剪切等于复制之后再删掉原节点', () => {
+    const id = s().addTextNode({ x: 0, y: 0 });
+    s().onNodesChange([{ id, type: 'select', selected: true }]);
+
+    expect(s().cutSelected()).toBe(1);
+    expect(s().nodes).toHaveLength(0);
+
+    s().pasteClipboard();
+    expect(s().nodes).toHaveLength(1);
+  });
+
+  it('锁定后节点拖不动，解锁后恢复', () => {
+    const id = s().addTextNode({ x: 0, y: 0 });
+
+    s().toggleNodeLock(id);
+    expect(s().nodes[0].draggable).toBe(false);
+    expect((s().nodes[0].data as { locked?: boolean }).locked).toBe(true);
+
+    s().toggleNodeLock(id);
+    expect(s().nodes[0].draggable).toBe(true);
+    expect((s().nodes[0].data as { locked?: boolean }).locked).toBe(false);
+  });
+
+  it('可以关掉和重新打开某个节点的 AI 对话框', () => {
+    const id = s().addTextNode({ x: 0, y: 0 });
+
+    s().toggleAiNode(id);
+    expect((s().nodes[0].data as { aiOpen?: boolean }).aiOpen).toBe(false);
+
+    s().toggleAiNode(id);
+    expect((s().nodes[0].data as { aiOpen?: boolean }).aiOpen).toBe(true);
+  });
 });

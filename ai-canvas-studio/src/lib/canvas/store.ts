@@ -10,6 +10,7 @@ import {
 import { DEFAULT_NODE_SIZE, HISTORY_LIMIT, MIN_NODE_SIZE, nodeSizeKey } from './constants';
 import { alignNodes } from './alignment';
 import { findFreeSpot } from './placement';
+import { collectSelection, getClipboard, materializeClipboard, setClipboard } from './clipboard';
 import type {
   Alignment,
   CanvasEdge,
@@ -43,6 +44,11 @@ export type CanvasStore = {
   removeNodes: (ids: string[]) => void;
   duplicateNode: (id: string) => string | null;
   disconnectNode: (id: string) => void;
+  copySelected: () => number;
+  cutSelected: () => number;
+  pasteClipboard: (position?: { x: number; y: number }) => string[];
+  toggleNodeLock: (id: string) => void;
+  toggleAiNode: (id: string) => void;
   alignSelection: (alignment: Alignment) => void;
   clearCanvas: () => void;
   onConnect: (connection: Connection) => void;
@@ -229,6 +235,59 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => {
       mutate((state) => ({
         edges: state.edges.filter((edge) => edge.source !== id && edge.target !== id),
       }));
+    },
+
+    copySelected: () => {
+      const { nodes, edges } = get();
+      const ids = nodes.filter((node) => node.selected).map((node) => node.id);
+      if (ids.length === 0) return 0;
+      setClipboard(collectSelection(nodes, edges, ids));
+      return ids.length;
+    },
+
+    cutSelected: () => {
+      const { nodes } = get();
+      const ids = nodes.filter((node) => node.selected).map((node) => node.id);
+      if (ids.length === 0) return 0;
+      setClipboard(collectSelection(nodes, get().edges, ids));
+      get().removeNodes(ids);
+      return ids.length;
+    },
+
+    pasteClipboard: (position) => {
+      const source = getClipboard();
+      if (!source || source.nodes.length === 0) return [];
+
+      const pasted = materializeClipboard(source, { idFactory: nextId, position });
+      mutate((state) => ({
+        nodes: [...state.nodes.map((node) => ({ ...node, selected: false })), ...pasted.nodes],
+        edges: [...state.edges, ...pasted.edges],
+      }));
+      return pasted.nodes.map((node) => node.id);
+    },
+
+    toggleNodeLock: (id) => {
+      const node = get().nodes.find((item) => item.id === id);
+      if (!node) return;
+      const locked = !(node.data.locked ?? false);
+      mutate((state) => ({
+        nodes: state.nodes.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                draggable: !locked,
+                data: { ...item.data, locked } as CanvasNodeData,
+              }
+            : item,
+        ),
+      }));
+    },
+
+    toggleAiNode: (id) => {
+      const node = get().nodes.find((item) => item.id === id);
+      if (!node) return;
+      const aiOpen = !(node.data.aiOpen ?? true);
+      get().updateNodeData(id, { aiOpen } as never);
     },
 
     alignSelection: (alignment) => {

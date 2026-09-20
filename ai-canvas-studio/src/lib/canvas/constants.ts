@@ -18,3 +18,10 @@ export function nodeSizeKey(type: string | undefined): keyof typeof DEFAULT_NODE
   if (type === 'image' || type === 'reference') return type;
   return 'text';
 }
+
+/** 节点类型 → 新节点 id 的前缀。 */
+export function nodeIdPrefix(type: string | undefined): string {
+  if (type === 'image') return 'image';
+  if (type === 'reference') return 'ref';
+  return 'text';
+}

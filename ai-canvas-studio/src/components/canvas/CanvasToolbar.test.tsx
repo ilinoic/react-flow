@@ -69,6 +69,38 @@ describe('CanvasToolbar 快捷键', () => {
     expect(onFitView).toHaveBeenCalledTimes(1);
   });
 
+  it('Ctrl+C / Ctrl+X / Ctrl+V 复制、剪切、粘贴', async () => {
+    const id = s().addTextNode({ x: 0, y: 0 });
+    s().onNodesChange([{ id, type: 'select', selected: true }]);
+    setup();
+
+    await userEvent.keyboard('{Control>}c{/Control}');
+    await userEvent.keyboard('{Control>}v{/Control}');
+    expect(s().nodes).toHaveLength(2);
+
+    // 粘贴后选中的是刚粘出来的那份，剪切它只该删掉这一份
+    await userEvent.keyboard('{Control>}x{/Control}');
+    expect(s().nodes).toHaveLength(1);
+    await userEvent.keyboard('{Control>}v{/Control}');
+    expect(s().nodes).toHaveLength(2);
+  });
+
+  it('带 Ctrl 的 V 不会顺手切成选择工具', async () => {
+    const onToolChange = vi.fn();
+    render(
+      <CanvasToolbar
+        tool="hand"
+        onToolChange={onToolChange}
+        addPosition={() => ({ x: 0, y: 0 })}
+        onFitView={vi.fn()}
+      />,
+    );
+
+    await userEvent.keyboard('{Control>}v{/Control}');
+
+    expect(onToolChange).not.toHaveBeenCalled();
+  });
+
   it('在输入框里按 Ctrl+A 不会全选节点', async () => {
     s().addTextNode({ x: 0, y: 0 });
     s().addImageNode({ x: 200, y: 0 });

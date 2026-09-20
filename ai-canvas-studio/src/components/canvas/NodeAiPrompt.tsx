@@ -25,6 +25,8 @@ export function NodeAiPrompt({
     summary,
     referenceSrc,
     setReferenceSrc,
+    aiOpen,
+    setAiOpen,
   } = useNodeGeneration(nodeId);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // 中文输入法组词期间先把内容留在本地，组词结束再写进画布：
@@ -38,6 +40,26 @@ export function NodeAiPrompt({
 
   async function pickReference(file: File) {
     setReferenceSrc(await toReferenceImageDataUrl(file));
+  }
+
+  // 收起状态：只在节点底部留一个小小的入口，画面留给图片本身。
+  if (!aiOpen) {
+    return (
+      <div
+        data-testid="node-ai-prompt"
+        className="nodrag nopan flex shrink-0 items-center justify-end gap-1 border-t border-gray-200 bg-gray-50 px-1.5 py-1"
+      >
+        <button
+          type="button"
+          aria-label="打开 AI 对话框"
+          title="打开 AI 对话框"
+          onClick={() => setAiOpen(true)}
+          className="rounded-full border border-gray-300 bg-white/95 px-2 py-0.5 text-[10px] text-gray-600 shadow hover:bg-gray-100"
+        >
+          <span aria-hidden="true">✨</span> AI
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -126,6 +148,15 @@ export function NodeAiPrompt({
           </Link>
         </p>
       )}
+
+      <button
+        type="button"
+        aria-label="关闭 AI 对话框"
+        onClick={() => setAiOpen(false)}
+        className="self-end text-[10px] text-gray-400 hover:text-gray-700"
+      >
+        收起
+      </button>
 
       <button
         type="button"

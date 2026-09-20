@@ -63,6 +63,22 @@ describe('画布序列化', () => {
     expect((roundTrip.nodes[0].data as { prompt?: string }).prompt).toBe('写一句问候');
   });
 
+  it('节点的锁定状态和 AI 对话框开关也会保存', () => {
+    const withFlags: CanvasNode[] = [
+      {
+        ...nodes[0],
+        draggable: false,
+        data: { ...nodes[0].data, prompt: 'x', locked: true, aiOpen: false },
+      } as CanvasNode,
+    ];
+    const file = buildCanvasFile({ name: '示例', nodes: withFlags, edges: [], viewport });
+    const roundTrip = parseCanvasFile(serializeCanvasFile(file));
+    const data = roundTrip.nodes[0].data as { locked?: boolean; aiOpen?: boolean };
+
+    expect(data.locked).toBe(true);
+    expect(data.aiOpen).toBe(false);
+  });
+
   it('旧画布里没有提示词的节点也能读进来', () => {
     const file = JSON.parse(serializeCanvasFile(buildCanvasFile({ name: 'x', nodes, edges: [], viewport })));
     delete file.nodes[0].data.prompt;

@@ -24,6 +24,8 @@ const dataSchema = z.union([
     text: z.string(),
     prompt: z.string().optional(),
     referenceSrc: z.string().nullable().optional(),
+    locked: z.boolean().optional(),
+    aiOpen: z.boolean().optional(),
     ai: aiStateSchema,
   }),
   z.object({
@@ -33,12 +35,16 @@ const dataSchema = z.union([
     alt: z.string(),
     prompt: z.string().optional(),
     referenceSrc: z.string().nullable().optional(),
+    locked: z.boolean().optional(),
+    aiOpen: z.boolean().optional(),
     ai: aiStateSchema,
   }),
   z.object({
     kind: z.literal('reference'),
     src: z.string().nullable(),
     prompt: z.string().optional(),
+    locked: z.boolean().optional(),
+    aiOpen: z.boolean().optional(),
     ai: aiStateSchema,
   }),
 ]);

@@ -85,8 +85,24 @@ export function CanvasToolbar({
       const store = useCanvasStore.getState();
       const mod = event.ctrlKey || event.metaKey;
 
-      if (event.key === 'v' || event.key === 'V') onToolChange('select');
-      if (event.key === 'h' || event.key === 'H') onToolChange('hand');
+      if (mod && event.key.toLowerCase() === 'c') {
+        event.preventDefault();
+        store.copySelected();
+        return;
+      }
+      if (mod && event.key.toLowerCase() === 'x') {
+        event.preventDefault();
+        store.cutSelected();
+        return;
+      }
+      if (mod && event.key.toLowerCase() === 'v') {
+        event.preventDefault();
+        store.pasteClipboard();
+        return;
+      }
+
+      if (!mod && (event.key === 'v' || event.key === 'V')) onToolChange('select');
+      if (!mod && (event.key === 'h' || event.key === 'H')) onToolChange('hand');
 
       if (mod && event.key.toLowerCase() === 'z' && !event.shiftKey) {
         event.preventDefault();

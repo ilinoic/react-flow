@@ -17,6 +17,7 @@ import { GRID_SIZE } from '@/lib/canvas/constants';
 import { buildCanvasFile, canvasFileName, downloadJson, serializeCanvasFile } from '@/lib/canvas/serialization';
 import { importCanvasFile, isCanvasJsonFile } from '@/lib/canvas/importCanvas';
 import { downloadImage } from '@/lib/canvas/downloadImage';
+import { copyImageToClipboard } from '@/lib/canvas/clipboardImage';
 import { loadDraft, saveDraft } from '@/lib/canvas/localDraft';
 import { createProject, loadProjectGraph, updateProject } from '@/lib/projects/api';
 import { CanvasToolbar, type CanvasTool } from './CanvasToolbar';
@@ -160,6 +161,13 @@ function Inner() {
   }, []);
 
   const menuNode = nodeMenu ? nodes.find((node) => node.id === nodeMenu.nodeId) : undefined;
+  // 节点上能下载/复制的图片：图片节点和参考图片节点看 src，文本节点看它自带的参考图。
+  const menuImageSrc = (() => {
+    const data = menuNode?.data;
+    if (!data) return null;
+    if (data.kind === 'text') return data.referenceSrc ?? null;
+    return data.src ?? null;
+  })();
 
   return (
     <div
@@ -302,6 +310,23 @@ function Inner() {
               run: () => useCanvasStore.getState().removeNodes([nodeMenu.nodeId]),
             },
             {
+              label: '复制（Ctrl+C）',
+              run: () => useCanvasStore.getState().copySelected(),
+            },
+            {
+              label: '剪切（Ctrl+X）',
+              run: () => useCanvasStore.getState().cutSelected(),
+            },
+            {
+              label: '粘贴到这里（Ctrl+V）',
+              run: () => {
+                const target = menuNode?.position;
+                useCanvasStore
+                  .getState()
+                  .pasteClipboard(target ? { x: target.x + 48, y: target.y + 48 } : undefined);
+              },
+            },
+            {
               label: '填写提示词',
               run: () => {
                 document
@@ -317,11 +342,29 @@ function Inner() {
             },
             {
               label: '下载图片',
-              disabled: menuNode?.type !== 'image' || !(menuNode?.data as { src?: string | null } | undefined)?.src,
+              disabled: !menuImageSrc,
               run: () => {
-                const src = (menuNode?.data as { src?: string | null } | undefined)?.src;
-                if (src) void downloadImage(src);
+                if (menuImageSrc) void downloadImage(menuImageSrc);
               },
+            },
+            {
+              label: '复制图片到剪贴板',
+              disabled: !menuImageSrc,
+              run: () => {
+                if (menuImageSrc) {
+                  void copyImageToClipboard(menuImageSrc).catch((error) => {
+                    console.error('复制图片到剪贴板失败', error);
+                  });
+                }
+              },
+            },
+            {
+              label: menuNode?.data.aiOpen === false ? '打开 AI 对话框' : '关闭 AI 对话框',
+              run: () => useCanvasStore.getState().toggleAiNode(nodeMenu.nodeId),
+            },
+            {
+              label: menuNode?.data.locked ? '解锁位置' : '锁定位置',
+              run: () => useCanvasStore.getState().toggleNodeLock(nodeMenu.nodeId),
             },
             {
               label: '复制节点',

@@ -13,6 +13,7 @@ import type { CanvasNode } from '@/lib/canvas/types';
 export function ImageNode({ id, data, selected }: NodeProps<CanvasNode>) {
   const src = data.kind === 'image' ? data.src : null;
   const alt = data.kind === 'image' ? data.alt : '图片';
+  const locked = data.locked ?? false;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const updateNodeData = useCanvasStore((state) => state.updateNodeData);
@@ -37,14 +38,23 @@ export function ImageNode({ id, data, selected }: NodeProps<CanvasNode>) {
   return (
     <>
       <NodeResizer
-        isVisible={selected}
+        isVisible={selected && !locked}
         minWidth={MIN_NODE_SIZE.image.width}
         minHeight={MIN_NODE_SIZE.image.height}
         onResizeStart={() => commitHistory()}
       />
       <Handle type="target" position={Position.Left} />
       <Handle type="source" position={Position.Right} />
-      <div className="flex h-full w-full flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm">
+      <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm">
+        {locked && (
+          <span
+            aria-label="已锁定"
+            title="已锁定位置"
+            className="pointer-events-none absolute left-1 top-1 z-10 rounded bg-white/85 px-1 text-[10px] text-gray-600 shadow-sm"
+          >
+            🔒
+          </span>
+        )}
         <div
           data-testid="image-node-body"
           onDragOver={(event) => event.preventDefault()}

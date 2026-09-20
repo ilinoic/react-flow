@@ -216,4 +216,12 @@ describe('ImageNode', () => {
     fireEvent.compositionEnd(input, { target: { value: '水彩' } });
     expect((s().nodes.find((item) => item.id === id)!.data as { prompt: string }).prompt).toBe('水彩');
   });
+
+  it('点「收起」能关掉 AI 对话框，只留一个入口，点入口能再打开', async () => {
+    setup();
+    await userEvent.click(screen.getByRole('button', { name: '关闭 AI 对话框' }));
+    expect(screen.queryByLabelText('提示词')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: '打开 AI 对话框' }));
+    expect(screen.getByLabelText('提示词')).toBeInTheDocument();
+  });
 });

@@ -11,6 +11,7 @@ import type { CanvasNode } from '@/lib/canvas/types';
 /** 参考图片节点：放参考素材用，生成的结果直接写在这个节点上。 */
 export function ReferenceNode({ id, data, selected }: NodeProps<CanvasNode>) {
   const src = data.kind === 'reference' ? data.src : null;
+  const locked = data.locked ?? false;
   const [error, setError] = useState<string | null>(null);
   const updateNodeData = useCanvasStore((state) => state.updateNodeData);
   const commitHistory = useCanvasStore((state) => state.commitHistory);
@@ -27,14 +28,23 @@ export function ReferenceNode({ id, data, selected }: NodeProps<CanvasNode>) {
   return (
     <>
       <NodeResizer
-        isVisible={selected}
+        isVisible={selected && !locked}
         minWidth={MIN_NODE_SIZE.reference.width}
         minHeight={MIN_NODE_SIZE.reference.height}
         onResizeStart={() => commitHistory()}
       />
       <Handle type="target" position={Position.Left} />
       <Handle type="source" position={Position.Right} />
-      <div className="flex h-full w-full flex-col overflow-hidden rounded-lg border border-dashed border-indigo-300 bg-white shadow-sm">
+      <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg border border-dashed border-indigo-300 bg-white shadow-sm">
+        {locked && (
+          <span
+            aria-label="已锁定"
+            title="已锁定位置"
+            className="pointer-events-none absolute left-1 top-1 z-10 rounded bg-white/85 px-1 text-[10px] text-gray-600 shadow-sm"
+          >
+            🔒
+          </span>
+        )}
         <div
           data-testid="reference-node-body"
           onDragOver={(event) => event.preventDefault()}

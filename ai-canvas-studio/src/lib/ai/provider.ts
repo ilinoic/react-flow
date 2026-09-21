@@ -30,6 +30,25 @@ export function buildPrompt(prompt: string, texts: string[]): string {
   return `${prompt}\n\n参考信息：\n${clean.map((item) => `- ${item}`).join('\n')}`;
 }
 
+/**
+ * 改图接口对提示词长度比文生图敏感得多：实测 1500 字正常，
+ * 2500 字以上百炼会直接返回 `submit algo service error, Internal server error!`。
+ * 所以走改图时把提示词压到这个长度以内 —— 先保住用户自己写的那句指令，
+ * 剩下的额度才留给连线带来的参考信息。
+ */
+export const IMAGE_EDIT_PROMPT_LIMIT = 1500;
+
+export function clampEditPrompt(
+  prompt: string,
+  texts: string[],
+  limit: number = IMAGE_EDIT_PROMPT_LIMIT,
+): string {
+  const full = buildPrompt(prompt, texts);
+  if (full.length <= limit) return full;
+  if (prompt.length >= limit) return prompt.slice(0, limit);
+  return prompt + full.slice(prompt.length, limit);
+}
+
 /** 模拟模式用的占位图：确定性 SVG，不联网。 */
 export function mockImageDataUrl(text: string): string {
   const label = escapeXml(text.replace(/\s+/g, ' ').slice(0, 40) || '模拟图片');
@@ -85,7 +104,8 @@ export async function generateImage(
   }
 
   const form = new FormData();
-  form.append('model', config.imageModel);
+  // 带底图的这次是「图改图」，用设置里单独的模型；没填就沿用图片模型。
+  form.append('model', (config.imageEditModel ?? '').trim() || config.imageModel);
   form.append('prompt', prompt);
   form.append('size', input.size);
   input.images.forEach((image, index) => {
@@ -142,7 +162,12 @@ export async function generateQwenImage(
   const origin = dashscopeOrigin(config.baseUrl);
   const prompt = buildPrompt(input.prompt, input.texts);
 
-  const editModel = /t2i|text2image/.test(config.imageModel) ? 'wanx2.1-imageedit' : config.imageModel;
+  // 图改图模型可以在设置里单独指定；留空就沿用老规矩：
+  // 文生图模型（名字里带 t2i）不能做编辑，自动换成图像编辑模型。
+  const configuredEditModel = (config.imageEditModel ?? '').trim();
+  const editModel =
+    configuredEditModel ||
+    (/t2i|text2image/.test(config.imageModel) ? 'wanx2.1-imageedit' : config.imageModel);
   const withReference = input.images.length > 0;
   const path = withReference
     ? '/api/v1/services/aigc/image2image/image-synthesis'
@@ -152,7 +177,7 @@ export async function generateQwenImage(
         model: editModel,
         input: {
           function: 'description_edit',
-          prompt,
+          prompt: clampEditPrompt(input.prompt, input.texts),
           base_image_url: input.images[0].dataUrl,
         },
         parameters: { n: 1 },

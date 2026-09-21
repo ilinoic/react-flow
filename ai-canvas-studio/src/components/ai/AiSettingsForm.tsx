@@ -15,6 +15,11 @@ const FIELDS: { key: keyof AiConfig; label: string; placeholder?: string; secret
   { key: 'baseUrl', label: 'Base URL', placeholder: 'https://api.openai.com/v1' },
   { key: 'apiKey', label: 'API Key', placeholder: 'sk-...', secret: true },
   { key: 'imageModel', label: '图片模型', placeholder: 'gpt-image-1' },
+  {
+    key: 'imageEditModel',
+    label: '图改图模型',
+    placeholder: '留空则自动挑（千问用 wanx2.1-imageedit）',
+  },
   { key: 'textModel', label: '文本模型', placeholder: 'gpt-4o-mini' },
   { key: 'imageSize', label: '默认图片尺寸', placeholder: '1024x1024' },
 ];
@@ -62,6 +67,7 @@ export function AiSettingsForm() {
         provider,
         baseUrl: preset.baseUrl,
         imageModel: preset.imageModel,
+        imageEditModel: preset.imageEditModel,
         textModel: preset.textModel,
         imageSize: preset.imageSize,
       };

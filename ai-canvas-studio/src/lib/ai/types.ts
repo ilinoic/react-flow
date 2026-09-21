@@ -5,7 +5,10 @@ export type AiConfig = {
   provider: AiProvider;
   baseUrl: string;
   apiKey: string;
+  /** 文生图用的模型。 */
   imageModel: string;
+  /** 图改图（带参考图、或在已有结果上继续改）用的模型；留空则按老规矩自动挑。 */
+  imageEditModel?: string;
   textModel: string;
   imageSize: string;
 };

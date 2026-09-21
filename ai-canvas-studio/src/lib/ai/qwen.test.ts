@@ -144,6 +144,29 @@ describe('generateQwenImage（千问原生异步接口）', () => {
     expect(submitted.model).toBe('wanx2.1-imageedit');
   });
 
+  it('设置里填了图改图模型就优先用它', async () => {
+    let submitted: { model?: string } = {};
+    const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      if (String(url).includes('image2image')) {
+        submitted = JSON.parse(String(init?.body));
+        return json({ output: { task_id: 'edit-custom' } });
+      }
+      if (String(url).includes('/api/v1/tasks/edit-custom')) {
+        return json({ output: { task_status: 'SUCCEEDED', results: [{ url: 'https://cdn.example.com/d.png' }] } });
+      }
+      return new Response(new Uint8Array([1]), { status: 200, headers: { 'content-type': 'image/png' } });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await generateQwenImage(
+      { ...qwenConfig, imageEditModel: 'my-gateway-edit-model' },
+      { prompt: '改成水彩', texts: [], images: [{ name: 'n1', dataUrl: 'data:image/png;base64,AAA' }], size: '1024*1024' },
+      { pollIntervalMs: 1, maxPolls: 3 },
+    );
+
+    expect(submitted.model).toBe('my-gateway-edit-model');
+  });
+
   it('多张参考图时只把第一张作为编辑底图', async () => {
     let submitted: { input?: { base_image_url?: string } } = {};
     const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
@@ -184,5 +207,69 @@ describe('generateQwenImage（千问原生异步接口）', () => {
     await expect(
       generateQwenImage(qwenConfig, { prompt: '猫', texts: [], images: [], size: '1024*1024' }, { pollIntervalMs: 1, maxPolls: 1 }),
     ).rejects.toThrow(/401/);
+  });
+
+  it('改图时提示词太长会被截短，用户自己写的那句指令要保住', async () => {
+    let submitted: { input?: { prompt?: string } } = {};
+    const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      if (String(url).includes('image2image')) {
+        submitted = JSON.parse(String(init?.body));
+        return json({ output: { task_id: 'edit-long' } });
+      }
+      return json({ output: { task_status: 'FAILED', message: '停在这里就够' } });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    // 2500 字以上上游会直接内部报错（实测），所以这里必须发短一些
+    const longScript = '按这段剧本画分镜。'.repeat(400);
+    await expect(
+      generateQwenImage(
+        qwenConfig,
+        {
+          prompt: '继续生成并把字变清晰',
+          texts: [longScript],
+          images: [{ name: 'n1', dataUrl: 'data:image/png;base64,AAA' }],
+          size: '1024*1024',
+        },
+        { pollIntervalMs: 1, maxPolls: 1 },
+      ),
+    ).rejects.toThrow('停在这里就够');
+
+    const prompt = submitted.input?.prompt ?? '';
+    expect(prompt.startsWith('继续生成并把字变清晰')).toBe(true);
+    expect(prompt.length).toBeLessThanOrEqual(1500);
+    // 参考信息只带上了前面一段，没有整段塞进去
+    expect(prompt).toContain('参考信息');
+    expect(prompt).toContain('按这段剧本画分镜。');
+    expect(prompt.includes(longScript)).toBe(false);
+  });
+
+  it('改图时提示词没超限就原样发出去', async () => {
+    let submitted: { input?: { prompt?: string } } = {};
+    const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      if (String(url).includes('image2image')) {
+        submitted = JSON.parse(String(init?.body));
+        return json({ output: { task_id: 'edit-short' } });
+      }
+      return json({ output: { task_status: 'FAILED', message: '停在这里就够' } });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const script = '按这段剧本画分镜：女医生翻病例。';
+    await expect(
+      generateQwenImage(
+        qwenConfig,
+        {
+          prompt: '继续生成并把字变清晰',
+          texts: [script],
+          images: [{ name: 'n1', dataUrl: 'data:image/png;base64,AAA' }],
+          size: '1024*1024',
+        },
+        { pollIntervalMs: 1, maxPolls: 1 },
+      ),
+    ).rejects.toThrow('停在这里就够');
+
+    expect(submitted.input?.prompt).toContain('继续生成并把字变清晰');
+    expect(submitted.input?.prompt).toContain(script);
   });
 });

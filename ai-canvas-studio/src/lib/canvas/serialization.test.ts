@@ -57,6 +57,32 @@ describe('画布序列化', () => {
     expect(() => parseCanvasFile(JSON.stringify(file))).toThrow('画布 JSON 格式不正确');
   });
 
+  it('关掉「基于当前图修改」也会跟画布一起保存与恢复', () => {
+    const file = buildCanvasFile({
+      name: '示例',
+      viewport,
+      edges: [],
+      nodes: [
+        {
+          id: 'i1',
+          type: 'image',
+          position: { x: 0, y: 0 },
+          data: {
+            kind: 'image',
+            src: 'data:image/png;base64,AAAA',
+            alt: '图片节点',
+            prompt: '把背景换成夜晚',
+            basedOnCurrent: false,
+            ai,
+          },
+        },
+      ],
+    });
+
+    const roundTrip = parseCanvasFile(serializeCanvasFile(file));
+    expect(roundTrip.nodes[0].data).toMatchObject({ basedOnCurrent: false });
+  });
+
   it('节点上的提示词会跟画布一起保存与恢复', () => {
     const file = buildCanvasFile({ name: '示例', nodes, edges: [], viewport });
     const roundTrip = parseCanvasFile(serializeCanvasFile(file));

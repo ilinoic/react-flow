@@ -53,6 +53,29 @@ describe('AI 设置读写', () => {
     expect(qwen.label).toContain('千问');
   });
 
+  it('千问预设给出图改图模型', () => {
+    expect(PROVIDER_PRESETS.qwen.imageEditModel).toBe('wanx2.1-imageedit');
+  });
+
+  it('旧配置里没有图改图模型也能照常读出来', () => {
+    localStorage.setItem(
+      AI_SETTINGS_KEY,
+      JSON.stringify({
+        provider: 'qwen',
+        baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        apiKey: 'sk-old',
+        imageModel: 'wanx2.1-t2i-turbo',
+        textModel: 'qwen-plus',
+        imageSize: '1024*1024',
+      }),
+    );
+
+    const loaded = loadAiSettings();
+    expect(loaded.provider).toBe('qwen');
+    expect(loaded.imageModel).toBe('wanx2.1-t2i-turbo');
+    expect(loaded.imageEditModel ?? '').toBe('');
+  });
+
   it('能读出用千问供应商保存的配置', () => {
     saveAiSettings({ ...DEFAULT_AI_SETTINGS, provider: 'qwen', ...PROVIDER_PRESETS.qwen, apiKey: 'sk-x' } as never);
     expect(loadAiSettings().provider).toBe('qwen');

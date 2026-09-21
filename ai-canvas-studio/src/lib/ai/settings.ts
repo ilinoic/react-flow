@@ -8,6 +8,7 @@ export const DEFAULT_AI_SETTINGS: AiConfig = {
   baseUrl: 'https://api.openai.com/v1',
   apiKey: '',
   imageModel: 'gpt-image-1',
+  imageEditModel: 'gpt-image-1',
   textModel: 'gpt-4o-mini',
   imageSize: '1024x1024',
 };
@@ -15,7 +16,10 @@ export const DEFAULT_AI_SETTINGS: AiConfig = {
 export type ProviderPreset = {
   label: string;
   baseUrl: string;
+  /** 文生图（从零画一张）用的模型。 */
   imageModel: string;
+  /** 图改图（有底图/在已有结果上继续改）用的模型。 */
+  imageEditModel: string;
   textModel: string;
   imageSize: string;
 };
@@ -25,6 +29,7 @@ export const PROVIDER_PRESETS: Record<AiProvider, ProviderPreset> = {
     label: '模拟模式（不联网，出占位图）',
     baseUrl: 'https://api.openai.com/v1',
     imageModel: 'gpt-image-1',
+    imageEditModel: 'gpt-image-1',
     textModel: 'gpt-4o-mini',
     imageSize: '1024x1024',
   },
@@ -32,6 +37,7 @@ export const PROVIDER_PRESETS: Record<AiProvider, ProviderPreset> = {
     label: 'OpenAI 兼容接口（自定义地址）',
     baseUrl: 'https://api.openai.com/v1',
     imageModel: 'gpt-image-1',
+    imageEditModel: 'gpt-image-1',
     textModel: 'gpt-4o-mini',
     imageSize: '1024x1024',
   },
@@ -39,6 +45,7 @@ export const PROVIDER_PRESETS: Record<AiProvider, ProviderPreset> = {
     label: '通义千问 · 阿里云百炼',
     baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     imageModel: 'wanx2.1-t2i-turbo',
+    imageEditModel: 'wanx2.1-imageedit',
     textModel: 'qwen-plus',
     imageSize: '1024*1024',
   },
@@ -49,6 +56,8 @@ const schema = z.object({
   baseUrl: z.string(),
   apiKey: z.string(),
   imageModel: z.string(),
+  // 老配置里没有这一项：缺了就按「自动挑」处理，不要整份配置回落到默认值。
+  imageEditModel: z.string().optional(),
   textModel: z.string(),
   imageSize: z.string(),
 });

@@ -5,8 +5,9 @@ import { useCanvasStore } from './store';
 import { resolveReferences } from './graph';
 import { loadAiSettings } from '@/lib/ai/settings';
 import { toDataUrl } from '@/lib/ai/image';
+import { IMAGE_EDIT_PROMPT_LIMIT, buildPrompt } from '@/lib/ai/provider';
 import type { AiGenerateResponse } from '@/lib/ai/types';
-import type { AiMessage } from './types';
+import type { AiMessage, CanvasNodeData } from './types';
 
 function newMessageId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -21,6 +22,26 @@ export function referenceSummary(texts: number, images: number): string | null {
   if (texts > 0) parts.push(`${texts} 个文本`);
   if (images > 0) parts.push(`${images} 张图`);
   return `参考：${parts.join('、')}`;
+}
+
+/** 同一张图只发一次：底图在最前面，后面的重复项丢掉。 */
+function dedupeImages<T extends { src: string }>(images: T[]): T[] {
+  return images.filter(
+    (item, index) => images.findIndex((other) => other.src === item.src) === index,
+  );
+}
+
+/** 节点当前放着的东西：文本节点看文字，出图节点看图片。 */
+export function readCurrentResult(data: CanvasNodeData | undefined): {
+  kind: 'text' | 'image';
+  value: string;
+} {
+  if (!data) return { kind: 'image', value: '' };
+  if (data.kind === 'text') return { kind: 'text', value: data.text.trim() };
+  if (data.kind === 'image' || data.kind === 'reference') {
+    return { kind: 'image', value: data.src ?? '' };
+  }
+  return { kind: 'image', value: '' };
 }
 
 /**
@@ -44,6 +65,13 @@ export function useNodeGeneration(nodeId: string) {
   const effectivePrompt = prompt.trim() || referenceText;
   const canGenerate = Boolean(node) && effectivePrompt.length > 0 && !busy;
 
+  // 节点现在放着的东西：出图节点看图片，文本节点看文字。
+  // 再次生成默认就在它上面接着改，所以把它当作底图/底稿一起发出去。
+  const { kind: currentResultKind, value: currentResult } = readCurrentResult(node?.data);
+  const hasCurrentResult = currentResult.length > 0;
+  const basedOnCurrent = node?.data.basedOnCurrent ?? true;
+  const usesCurrentResult = basedOnCurrent && hasCurrentResult;
+
   // 节点自带的参考图：普通节点放在 referenceSrc，参考图片节点本身就是参考素材。
   const ownReferenceSrc =
     node?.data.kind === 'reference'
@@ -52,7 +80,24 @@ export function useNodeGeneration(nodeId: string) {
   const ownReferenceImages = ownReferenceSrc
     ? [{ nodeId, src: ownReferenceSrc, alt: '节点参考图' }]
     : [];
-  const referenceImages = [...ownReferenceImages, ...bundle.images];
+  const plainReferenceImages = dedupeImages([...ownReferenceImages, ...bundle.images]);
+  // 底图排在最前面：出图接口拿第一张当「要改的那张」，其余的只参与提示词。
+  const baseImages =
+    usesCurrentResult && currentResultKind === 'image'
+      ? [{ nodeId, src: currentResult, alt: '当前结果' }]
+      : [];
+  const referenceImages = dedupeImages([...baseImages, ...plainReferenceImages]);
+  const referenceTexts =
+    usesCurrentResult && currentResultKind === 'text'
+      ? [currentResult, ...bundle.texts.map((item) => item.text)]
+      : bundle.texts.map((item) => item.text);
+  // 改图接口吃不下太长的提示词（见 provider.ts 里的实测值），提前告诉用户会被截断，
+  // 免得他以为「我明明把整段剧本连上去了」。
+  const editPromptWillTruncate =
+    settings.provider === 'qwen' &&
+    usesCurrentResult &&
+    currentResultKind === 'image' &&
+    buildPrompt(effectivePrompt, referenceTexts).length > IMAGE_EDIT_PROMPT_LIMIT;
 
   function setPrompt(value: string) {
     // 打字不该占撤销历史，撤销只回退生成这类实质改动。
@@ -67,6 +112,10 @@ export function useNodeGeneration(nodeId: string) {
 
   function setAiOpen(value: boolean) {
     updateNodeData(nodeId, { aiOpen: value } as never);
+  }
+
+  function setBasedOnCurrent(value: boolean) {
+    updateNodeData(nodeId, { basedOnCurrent: value } as never);
   }
 
   /** 出图节点一律把结果写回自己，不再另外新建节点。 */
@@ -91,7 +140,6 @@ export function useNodeGeneration(nodeId: string) {
 
     const config = loadAiSettings();
     const outputKind = node.data.kind === 'text' ? 'text' : 'image';
-    const history = node.data.ai.messages;
     const userMessage: AiMessage = {
       id: newMessageId(),
       role: 'user',
@@ -101,7 +149,8 @@ export function useNodeGeneration(nodeId: string) {
 
     setBusy(true);
     setError(null);
-    updateNodeData(nodeId, { ai: { messages: [...history, userMessage], status: 'running' } } as never);
+    // 只留这一轮的记录：生成过的图不堆在草稿里，免得本地存储越攒越大。
+    updateNodeData(nodeId, { ai: { messages: [userMessage], status: 'running' } } as never);
 
     try {
       const images = await Promise.all(
@@ -117,7 +166,7 @@ export function useNodeGeneration(nodeId: string) {
           prompt: effectivePrompt,
           size: config.imageSize,
           config,
-          references: { texts: bundle.texts.map((item) => item.text), images },
+          references: { texts: referenceTexts, images },
         }),
       });
       const json = (await response.json()) as AiGenerateResponse;
@@ -130,11 +179,11 @@ export function useNodeGeneration(nodeId: string) {
         imageSrc: json.imageSrc,
         createdAt: new Date().toISOString(),
       };
-      applyResult([...history, userMessage, assistantMessage], json.imageSrc, json.text);
+      applyResult([userMessage, assistantMessage], json.imageSrc, json.text);
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : '生成失败';
       setError(message);
-      updateNodeData(nodeId, { ai: { messages: history, status: 'error', error: message } } as never);
+      updateNodeData(nodeId, { ai: { messages: [userMessage], status: 'error', error: message } } as never);
     } finally {
       setBusy(false);
     }
@@ -146,6 +195,12 @@ export function useNodeGeneration(nodeId: string) {
     setPrompt,
     referenceSrc: ownReferenceSrc,
     setReferenceSrc,
+    currentResultKind,
+    hasCurrentResult,
+    basedOnCurrent,
+    setBasedOnCurrent,
+    usesCurrentResult,
+    editPromptWillTruncate,
     aiOpen,
     setAiOpen,
     effectivePrompt,
@@ -154,6 +209,6 @@ export function useNodeGeneration(nodeId: string) {
     error,
     isMock,
     generate,
-    summary: referenceSummary(bundle.texts.length, referenceImages.length),
+    summary: referenceSummary(bundle.texts.length, plainReferenceImages.length),
   };
 }

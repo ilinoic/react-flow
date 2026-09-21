@@ -112,4 +112,45 @@ describe('POST /api/ai/generate', () => {
     expect(String((await response.json()).error)).toContain('401');
     vi.unstubAllGlobals();
   });
+
+  it('把设置里的图改图模型透传给带底图的请求', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    let submitted: { model?: string } = {};
+    const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      if (String(url).includes('image2image')) {
+        submitted = JSON.parse(String(init?.body));
+        return new Response(JSON.stringify({ output: { task_id: 't5' } }), { status: 200 });
+      }
+      if (String(url) === 'https://cdn.example.com/e.png') {
+        return new Response(new Uint8Array([5, 5]), {
+          status: 200,
+          headers: { 'content-type': 'image/png' },
+        });
+      }
+      return new Response(
+        JSON.stringify({ output: { task_status: 'SUCCEEDED', results: [{ url: 'https://cdn.example.com/e.png' }] } }),
+        { status: 200 },
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await POST(
+      makeRequest({
+        ...validBody,
+        references: { texts: [], images: [{ name: 'n1', dataUrl: 'data:image/png;base64,AAA' }] },
+        config: {
+          ...validBody.config,
+          provider: 'qwen',
+          baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+          imageModel: 'wan2.5-t2i-preview',
+          // 故意给一个和「自动兜底」不同的值，才能证明它真的透传过去了
+          imageEditModel: 'my-gateway-edit-model',
+        },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(submitted.model).toBe('my-gateway-edit-model');
+    vi.unstubAllGlobals();
+  });
 });

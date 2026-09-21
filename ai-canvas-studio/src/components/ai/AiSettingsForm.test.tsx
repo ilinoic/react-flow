@@ -73,4 +73,26 @@ describe('AiSettingsForm', () => {
     await userEvent.click(screen.getByRole('button', { name: '保存' }));
     expect(screen.getByRole('status')).toHaveTextContent(/还没填 API Key/);
   });
+
+  it('设置里有「图改图模型」这一格，填了能存下来', async () => {
+    render(<AiSettingsForm />);
+
+    await userEvent.clear(screen.getByLabelText('图改图模型'));
+    await userEvent.type(screen.getByLabelText('图改图模型'), 'wanx2.1-imageedit');
+    await userEvent.click(screen.getByRole('button', { name: '保存' }));
+
+    expect(JSON.parse(localStorage.getItem(AI_SETTINGS_KEY)!).imageEditModel).toBe(
+      'wanx2.1-imageedit',
+    );
+  });
+
+  it('切到千问预设会自动填好图改图模型', async () => {
+    render(<AiSettingsForm />);
+
+    await userEvent.selectOptions(screen.getByLabelText('供应商'), 'qwen');
+
+    expect((screen.getByLabelText('图改图模型') as HTMLInputElement).value).toBe(
+      'wanx2.1-imageedit',
+    );
+  });
 });

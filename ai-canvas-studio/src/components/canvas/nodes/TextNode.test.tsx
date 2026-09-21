@@ -149,4 +149,27 @@ describe('TextNode', () => {
     expect(body.prompt).toBe('水彩风格');
     expect(body.references.texts).toEqual(['水彩风格']);
   });
+
+  it('节点里已经有文字时，再次生成会把现有正文一起发出去做修改', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ text: '第二版文案' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const id = s().addTextNode({ x: 0, y: 0 });
+    s().updateNodeData(id, { text: '第一版文案' } as never);
+    renderTextNode(id);
+
+    await userEvent.type(screen.getByLabelText('提示词'), '再押韵一点');
+    await userEvent.click(screen.getByRole('button', { name: 'AI 生成' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
+    expect(body.references.texts).toEqual(['第一版文案']);
+  });
+
+  it('文本节点上写的是「基于当前文字修改」', () => {
+    const id = s().addTextNode({ x: 0, y: 0 });
+    s().updateNodeData(id, { text: '第一版文案' } as never);
+    renderTextNode(id);
+
+    expect(screen.getByLabelText('基于当前文字修改')).toBeChecked();
+  });
 });

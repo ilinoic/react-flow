@@ -5,6 +5,7 @@ import { ReactFlowProvider } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
 import { ImageNode } from './ImageNode';
 import { useCanvasStore } from '@/lib/canvas/store';
+import { PROVIDER_PRESETS, saveAiSettings } from '@/lib/ai/settings';
 import type { CanvasNode } from '@/lib/canvas/types';
 
 const s = () => useCanvasStore.getState();
@@ -223,5 +224,77 @@ describe('ImageNode', () => {
     expect(screen.queryByLabelText('提示词')).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: '打开 AI 对话框' }));
     expect(screen.getByLabelText('提示词')).toBeInTheDocument();
+  });
+
+  it('节点已经有图时，直接点生成会拿当前这张图当底图', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ imageSrc: svgDataUrl }));
+    vi.stubGlobal('fetch', fetchMock);
+    const id = s().addImageNode({ x: 0, y: 0 });
+    s().updateNodeData(id, { src: svgDataUrl } as never);
+    renderImageNode(id);
+
+    await userEvent.type(screen.getByLabelText('提示词'), '把背景换成夜晚');
+    await userEvent.click(screen.getByRole('button', { name: 'AI 生成' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
+    expect(body.references.images[0].dataUrl).toBe(svgDataUrl);
+  });
+
+  it('关掉「基于当前图修改」后从零生成，不带底图', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ imageSrc: svgDataUrl }));
+    vi.stubGlobal('fetch', fetchMock);
+    const id = s().addImageNode({ x: 0, y: 0 });
+    s().updateNodeData(id, { src: svgDataUrl } as never);
+    renderImageNode(id);
+
+    await userEvent.click(screen.getByLabelText('基于当前图修改')); // 取消勾选
+    await userEvent.type(screen.getByLabelText('提示词'), '重新画一只完全不同的猫');
+    await userEvent.click(screen.getByRole('button', { name: 'AI 生成' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
+    expect(body.references.images).toEqual([]);
+  });
+
+  it('节点有图之后才出现「基于当前图修改」，并且默认勾上', async () => {
+    const id = setup();
+    expect(screen.queryByLabelText('基于当前图修改')).toBeNull();
+
+    s().updateNodeData(id, { src: svgDataUrl } as never);
+
+    expect(await screen.findByLabelText('基于当前图修改')).toBeChecked();
+  });
+
+  it('反复生成不会把历史图片堆在草稿里', async () => {
+    // 每次都给一个新的 Response：同一个 Response 的 body 只能读一次。
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ imageSrc: svgDataUrl })));
+    const id = setup();
+
+    await userEvent.type(screen.getByLabelText('提示词'), '一只柴犬');
+    await userEvent.click(screen.getByRole('button', { name: 'AI 生成' }));
+    await waitFor(() => expect((s().nodes.find((n) => n.id === id)!.data as { src: string | null }).src).toBe(svgDataUrl));
+
+    await userEvent.click(screen.getByRole('button', { name: 'AI 生成' }));
+    await waitFor(() => {
+      const messages = (s().nodes.find((n) => n.id === id)!.data as {
+        ai: { messages: { imageSrc?: string }[] };
+      }).ai.messages;
+      expect(messages).toHaveLength(2);
+      expect(messages[0].imageSrc).toBeUndefined();
+      expect(messages[1].imageSrc).toBeDefined();
+    });
+  });
+
+  it('改图时参考信息超过接口上限会明说会截断', async () => {
+    saveAiSettings({ provider: 'qwen', apiKey: 'sk-test', ...PROVIDER_PRESETS.qwen });
+    const reference = s().addTextNode({ x: 0, y: 0 });
+    s().updateNodeData(reference, { text: '剧本'.repeat(1000) } as never);
+    const id = s().addImageNode({ x: 300, y: 0 });
+    s().updateNodeData(id, { src: svgDataUrl } as never);
+    s().onConnect({ source: reference, target: id, sourceHandle: null, targetHandle: null });
+    renderImageNode(id);
+
+    expect(screen.getByText(/参考信息只带前/)).toBeInTheDocument();
   });
 });

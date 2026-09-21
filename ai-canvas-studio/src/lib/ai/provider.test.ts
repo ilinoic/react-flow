@@ -87,6 +87,26 @@ describe('openai 兼容模式', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('https://api.test/v1/images/edits');
   });
 
+  it('有参考图时用的是设置里的图改图模型', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ data: [{ b64_json: 'CCC' }] }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await generateImage(
+      { ...openAiConfig, imageModel: 'gpt-image-1', imageEditModel: 'my-edit-model' },
+      {
+        prompt: '改造',
+        texts: [],
+        size: '1024x1024',
+        images: [{ name: 'n1', dataUrl: 'data:image/png;base64,AAA' }],
+      },
+    );
+
+    const form = (fetchMock.mock.calls[0][1] as RequestInit).body as FormData;
+    expect(form.get('model')).toBe('my-edit-model');
+  });
+
   it('上游非 2xx 时抛出带状态码的错误', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('bad key', { status: 401 })));
 

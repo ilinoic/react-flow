@@ -8,6 +8,9 @@ const configSchema = z.object({
   baseUrl: z.string(),
   apiKey: z.string(),
   imageModel: z.string(),
+  // 设置里单独指定的图改图模型；漏了这一项会被 zod 直接过滤掉，
+  // 前面填了也白填（曾经踩过）。
+  imageEditModel: z.string().optional(),
   textModel: z.string(),
   imageSize: z.string(),
 });

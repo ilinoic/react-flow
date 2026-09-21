@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useNodeGeneration } from '@/lib/canvas/useNodeGeneration';
 import { toReferenceImageDataUrl } from '@/lib/canvas/referenceImage';
+import { IMAGE_EDIT_PROMPT_LIMIT } from '@/lib/ai/provider';
 
 /** 节点底部的提示词输入区：就地输入、就地生成，结果写回本节点。 */
 export function NodeAiPrompt({
@@ -25,9 +26,16 @@ export function NodeAiPrompt({
     summary,
     referenceSrc,
     setReferenceSrc,
+    currentResultKind,
+    hasCurrentResult,
+    basedOnCurrent,
+    setBasedOnCurrent,
+    usesCurrentResult,
+    editPromptWillTruncate,
     aiOpen,
     setAiOpen,
   } = useNodeGeneration(nodeId);
+  const resultNoun = currentResultKind === 'text' ? '文字' : '图';
   const fileInputRef = useRef<HTMLInputElement>(null);
   // 中文输入法组词期间先把内容留在本地，组词结束再写进画布：
   // 否则每敲一个字母都写一次全局状态，组词会被打断，看起来就是「打不进字」。
@@ -110,7 +118,7 @@ export function NodeAiPrompt({
       <textarea
         aria-label="提示词"
         value={draft}
-        placeholder="输入提示词…"
+        placeholder={hasCurrentResult ? `在当前的${resultNoun}上怎么改…` : '输入提示词…'}
         onChange={(event) => {
           setDraft(event.target.value);
           if (!composing.current) setPrompt(event.target.value);
@@ -126,8 +134,31 @@ export function NodeAiPrompt({
         className="nowheel h-9 w-full resize-none rounded border border-gray-300 bg-white px-1.5 py-1 text-xs leading-4 text-gray-900 outline-none focus:border-gray-500"
       />
 
+      {hasCurrentResult && (
+        <label className="flex items-center gap-1 text-[10px] leading-tight text-gray-600">
+          <input
+            type="checkbox"
+            aria-label={`基于当前${resultNoun}修改`}
+            checked={basedOnCurrent}
+            onChange={(event) => setBasedOnCurrent(event.target.checked)}
+            className="h-3 w-3 shrink-0"
+          />
+          基于当前{resultNoun}修改
+        </label>
+      )}
+
       {!showReferenceSlot && summary && (
         <p className="text-[10px] leading-tight text-gray-500">{summary}</p>
+      )}
+
+      {busy && usesCurrentResult && (
+        <p className="text-[10px] leading-tight text-gray-500">本次基于当前{resultNoun}修改</p>
+      )}
+
+      {editPromptWillTruncate && (
+        <p className="text-[10px] leading-tight text-amber-700">
+          改图接口有长度上限，参考信息只带前 {IMAGE_EDIT_PROMPT_LIMIT} 字
+        </p>
       )}
 
       {error && (

@@ -5,7 +5,12 @@ import { useCanvasStore } from './store';
 import { resolveReferences } from './graph';
 import { loadAiSettings } from '@/lib/ai/settings';
 import { toDataUrl } from '@/lib/ai/image';
-import { IMAGE_EDIT_PROMPT_LIMIT, buildPrompt } from '@/lib/ai/provider';
+import {
+  IMAGE_EDIT_PROMPT_LIMIT,
+  buildPrompt,
+  resolveQwenEditModel,
+  usesQwenImageEndpoint,
+} from '@/lib/ai/provider';
 import type { AiGenerateResponse } from '@/lib/ai/types';
 import type { AiMessage, CanvasNodeData } from './types';
 
@@ -91,12 +96,13 @@ export function useNodeGeneration(nodeId: string) {
     usesCurrentResult && currentResultKind === 'text'
       ? [currentResult, ...bundle.texts.map((item) => item.text)]
       : bundle.texts.map((item) => item.text);
-  // 改图接口吃不下太长的提示词（见 provider.ts 里的实测值），提前告诉用户会被截断，
-  // 免得他以为「我明明把整段剧本连上去了」。
+  // 万相那条改图接口吃不下太长的提示词（见 provider.ts 里的实测值），提前告诉用户会被截断，
+  // 免得他以为「我明明把整段剧本连上去了」。qwen-image 那条没有这个限制，就不用提示。
   const editPromptWillTruncate =
     settings.provider === 'qwen' &&
     usesCurrentResult &&
     currentResultKind === 'image' &&
+    !usesQwenImageEndpoint(resolveQwenEditModel(settings)) &&
     buildPrompt(effectivePrompt, referenceTexts).length > IMAGE_EDIT_PROMPT_LIMIT;
 
   function setPrompt(value: string) {

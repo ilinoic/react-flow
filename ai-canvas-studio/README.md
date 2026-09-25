@@ -87,6 +87,17 @@ OpenAI 兼容协议下：无参考图走 `POST {baseUrl}/images/generations`，
 有参考图走 `POST {baseUrl}/images/edits`（multipart，多图按 `image[]`），
 文本走 `POST {baseUrl}/chat/completions`。要接别家协议时，只需扩展 `src/lib/ai/provider.ts`。
 
+图片模型填 `qwen-image-*`（例如 `qwen-image-3.0` 配 `qwen-image-edit-plus`）时，文生图和图改图都改走
+多模态同步接口：`POST {origin}/api/v1/services/aigc/multimodal-generation/generation`，
+一次请求直接返回图片，不用提交任务再轮询。文生图发 `content: [{ text }]`（带 `prompt_extend`，
+让模型把提示词扩写饱满），图改图发 `content: [{ image }, { text }]`，底图排在最前面。
+这条接口没有万相那条 1800 字的提示词限制 —— 实测 6000 字也照收，所以画布上直接连长篇剧本没问题，
+节点上也不会再出现「参考信息只带前 1800 字」的提示。
+
+出图尺寸跟着「默认图片尺寸」走，`qwen-image` 这两条实测 1328²/1664²/2048² 都能出
+（1664² 约 3.7MB、2048² 约 5MB）。图越大画布越重：超过 6MB 的图不内联，会留成会过期的临时链接，
+所以别超过 2048²。云端的 `projects.graph` 是直接存整段 base64 的，图多图大时上传会明显变慢。
+
 通义千问（阿里云百炼）说明：官方 `compatible-mode` **不提供** `/images/generations`（实测返回 404），
 所以出图走百炼的原生异步接口——`POST {origin}/api/v1/services/aigc/text2image/image-synthesis`
 提交任务，再轮询 `GET {origin}/api/v1/tasks/{task_id}`，成功后把图片取回并内联成 data URL；
@@ -98,10 +109,10 @@ OpenAI 兼容协议下：无参考图走 `POST {baseUrl}/images/generations`，
 （名字里带 `t2i`），会自动换成 `wanx2.1-imageedit`；已经在设置里选了图像编辑模型就沿用。多张参考图
 只把第一张当编辑底图，其余仍会作为文本参考参与提示词。
 
-改图接口对提示词长度比文生图敏感得多：实测 1500 字以内正常，2500 字以上百炼直接返回
-`submit algo service error, Internal server error!`。所以走改图时提示词会被压到 1500 字以内
-（先保住用户自己写的那句指令，剩下的额度留给连线带来的参考信息），节点底部会写明「参考信息只带前
-1500 字」。接了长篇剧本当参考的节点，靠这条限制才不会翻车。
+改图接口对提示词长度比文生图敏感得多：实测 1800 字正常、1900 字起百炼直接返回
+`submit algo service error, Internal server error!`（300 / 600 / 1000 / 1500 / 1700 都试过，都好）。
+所以走改图时提示词会被压到 1800 字以内（先保住用户自己写的那句指令，剩下的额度留给连线带来的
+参考信息），节点底部会写明「参考信息只带前 1800 字」。接了长篇剧本当参考的节点，靠这条限制才不会翻车。
 
 参考图在浏览器里会先缩放到 512~4096 像素之间（百炼对输入图的要求），再存成 data URL 跟着画布保存，
 所以不依赖 Supabase 登录，也不会像签名 URL 那样过期。

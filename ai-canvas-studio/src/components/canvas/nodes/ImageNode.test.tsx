@@ -297,4 +297,21 @@ describe('ImageNode', () => {
 
     expect(screen.getByText(/参考信息只带前/)).toBeInTheDocument();
   });
+
+  it('图改图模型是多模态那一类时不提示截断（那条接口没有 1800 字上限）', async () => {
+    saveAiSettings({
+      provider: 'qwen',
+      apiKey: 'sk-test',
+      ...PROVIDER_PRESETS.qwen,
+      imageEditModel: 'qwen-image-edit-plus',
+    });
+    const reference = s().addTextNode({ x: 0, y: 0 });
+    s().updateNodeData(reference, { text: '剧本'.repeat(1000) } as never);
+    const id = s().addImageNode({ x: 300, y: 0 });
+    s().updateNodeData(id, { src: svgDataUrl } as never);
+    s().onConnect({ source: reference, target: id, sourceHandle: null, targetHandle: null });
+    renderImageNode(id);
+
+    expect(screen.queryByText(/参考信息只带前/)).toBeNull();
+  });
 });

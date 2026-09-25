@@ -31,12 +31,13 @@ export function buildPrompt(prompt: string, texts: string[]): string {
 }
 
 /**
- * 改图接口对提示词长度比文生图敏感得多：实测 1500 字正常，
- * 2500 字以上百炼会直接返回 `submit algo service error, Internal server error!`。
+ * 改图接口对提示词长度比文生图敏感得多：实测 1800 字正常，1900 字起
+ * 百炼会直接返回 `submit algo service error, Internal server error!`。
+ * 这个上限就在 1800 / 1900 之间，所以取 1800 当顶。
  * 所以走改图时把提示词压到这个长度以内 —— 先保住用户自己写的那句指令，
  * 剩下的额度才留给连线带来的参考信息。
  */
-export const IMAGE_EDIT_PROMPT_LIMIT = 1500;
+export const IMAGE_EDIT_PROMPT_LIMIT = 1800;
 
 export function clampEditPrompt(
   prompt: string,
@@ -47,6 +48,18 @@ export function clampEditPrompt(
   if (full.length <= limit) return full;
   if (prompt.length >= limit) return prompt.slice(0, limit);
   return prompt + full.slice(prompt.length, limit);
+}
+
+/** qwen-image 系列（文生图 / 图改图）走多模态同步接口，不用提交任务再轮询。 */
+export function usesQwenImageEndpoint(model: string): boolean {
+  return model.trim().toLowerCase().startsWith('qwen-image');
+}
+
+/** 这次改图用哪个模型：设置里填了就用填的，留空才按老规矩自动挑。 */
+export function resolveQwenEditModel(config: AiConfig): string {
+  const configured = (config.imageEditModel ?? '').trim();
+  if (configured) return configured;
+  return /t2i|text2image/.test(config.imageModel) ? 'wanx2.1-imageedit' : config.imageModel;
 }
 
 /** 模拟模式用的占位图：确定性 SVG，不联网。 */
@@ -123,6 +136,55 @@ export async function generateImage(
 
 export type QwenImageOptions = { pollIntervalMs?: number; maxPolls?: number };
 
+const MULTIMODAL_PATH = '/api/v1/services/aigc/multimodal-generation/generation';
+/** 多模态接口一次最多带几张底图，多的不带（画布上的参考图通常就一两张）。 */
+const MULTIMODAL_MAX_IMAGES = 3;
+
+/**
+ * 多模态同步接口：文生图与图改图都在这条上，一次请求直接返回图片地址。
+ * 实测它不像万相那条有 1800 字的提示词限制（6000 字也照收），所以这里不截断。
+ */
+async function generateQwenImageOnce(
+  config: AiConfig,
+  options: {
+    origin: string;
+    model: string;
+    prompt: string;
+    size: string;
+    images: AiImageReference[];
+  },
+): Promise<{ imageSrc: string }> {
+  const content: Record<string, string>[] = options.images
+    .slice(0, MULTIMODAL_MAX_IMAGES)
+    .map((image) => ({ image: image.dataUrl }));
+  content.push({ text: options.prompt });
+
+  const response = await fetch(`${options.origin}${MULTIMODAL_PATH}`, {
+    method: 'POST',
+    headers: jsonHeaders(config),
+    body: JSON.stringify({
+      model: options.model,
+      input: { messages: [{ role: 'user', content }] },
+      // 从零画图时让模型自己把提示词扩写饱满；按指令改图时保持原话不动。
+      parameters:
+        options.images.length === 0
+          ? { size: options.size, prompt_extend: true }
+          : { size: options.size },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`千问出图失败（${response.status}）：${(await response.text()).slice(0, 300)}`);
+  }
+
+  const json = (await response.json()) as {
+    output?: { choices?: { message?: { content?: { image?: string }[] } }[] };
+  };
+  const url = json.output?.choices?.[0]?.message?.content?.find((item) => item.image)?.image;
+  if (!url) throw new Error('千问出图完成但没有返回图片地址');
+  return { imageSrc: await inlineRemoteImage(url) };
+}
+
 function dashscopeOrigin(baseUrl: string): string {
   try {
     return new URL(baseUrl).origin;
@@ -135,8 +197,10 @@ async function inlineRemoteImage(url: string): Promise<string> {
   const response = await fetch(url);
   if (!response.ok) return url;
   const blob = await response.blob();
-  // 过大的图不内联，避免画布 JSON 膨胀
-  if (blob.size > 4 * 1024 * 1024) return url;
+  // 过大的图不内联，避免画布 JSON 膨胀。
+  // 门槛放在 6MB：1664² 的出图实测 3.6~4.0MB，2048² 是 4.9~5.5MB，
+  // 卡在 4MB 会让它们擦边掉进「存成会过期的临时链接」那条路。
+  if (blob.size > 6 * 1024 * 1024) return url;
   const bytes = new Uint8Array(await blob.arrayBuffer());
   let binary = '';
   bytes.forEach((byte) => {
@@ -162,13 +226,21 @@ export async function generateQwenImage(
   const origin = dashscopeOrigin(config.baseUrl);
   const prompt = buildPrompt(input.prompt, input.texts);
 
-  // 图改图模型可以在设置里单独指定；留空就沿用老规矩：
-  // 文生图模型（名字里带 t2i）不能做编辑，自动换成图像编辑模型。
-  const configuredEditModel = (config.imageEditModel ?? '').trim();
-  const editModel =
-    configuredEditModel ||
-    (/t2i|text2image/.test(config.imageModel) ? 'wanx2.1-imageedit' : config.imageModel);
+  const editModel = resolveQwenEditModel(config);
   const withReference = input.images.length > 0;
+
+  // qwen-image 系列走多模态同步接口：文生图、图改图都在这一条上，一次请求直接出图。
+  const model = withReference ? editModel : config.imageModel;
+  if (usesQwenImageEndpoint(model)) {
+    return generateQwenImageOnce(config, {
+      origin,
+      model,
+      prompt,
+      size: input.size,
+      images: input.images,
+    });
+  }
+
   const path = withReference
     ? '/api/v1/services/aigc/image2image/image-synthesis'
     : '/api/v1/services/aigc/text2image/image-synthesis';

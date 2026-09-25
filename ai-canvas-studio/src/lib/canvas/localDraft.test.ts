@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { DRAFT_KEY, clearDraft, loadDraft, saveDraft } from './localDraft';
+import { DRAFT_KEY, clearDraft, draftKey, loadDraft, saveDraft } from './localDraft';
 import { buildCanvasFile } from './serialization';
 import type { CanvasNode } from './types';
 
@@ -67,5 +67,18 @@ describe('本地草稿', () => {
     } finally {
       Storage.prototype.setItem = original;
     }
+  });
+
+  it('每张画布各存一份草稿，互不覆盖', async () => {
+    expect(draftKey('a')).toBe('ai-canvas:draft:a');
+
+    await saveDraft(file, draftKey('a'));
+    await saveDraft(buildCanvasFile({ name: '第二张', nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }), draftKey('b'));
+
+    expect((await loadDraft(draftKey('a')))?.name).toBe('草稿');
+    expect((await loadDraft(draftKey('b')))?.name).toBe('第二张');
+    expect(await loadDraft(draftKey('c'))).toBeNull();
+    // 老的单草稿 key 不受影响
+    expect(await loadDraft()).toBeNull();
   });
 });

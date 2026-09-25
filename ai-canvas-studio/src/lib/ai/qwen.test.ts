@@ -220,7 +220,7 @@ describe('generateQwenImage（千问原生异步接口）', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    // 2500 字以上上游会直接内部报错（实测），所以这里必须发短一些
+    // 1900 字以上上游会直接内部报错（实测），所以这里必须发短一些
     const longScript = '按这段剧本画分镜。'.repeat(400);
     await expect(
       generateQwenImage(
@@ -237,7 +237,7 @@ describe('generateQwenImage（千问原生异步接口）', () => {
 
     const prompt = submitted.input?.prompt ?? '';
     expect(prompt.startsWith('继续生成并把字变清晰')).toBe(true);
-    expect(prompt.length).toBeLessThanOrEqual(1500);
+    expect(prompt.length).toBe(1800);
     // 参考信息只带上了前面一段，没有整段塞进去
     expect(prompt).toContain('参考信息');
     expect(prompt).toContain('按这段剧本画分镜。');
@@ -271,5 +271,123 @@ describe('generateQwenImage（千问原生异步接口）', () => {
 
     expect(submitted.input?.prompt).toContain('继续生成并把字变清晰');
     expect(submitted.input?.prompt).toContain(script);
+  });
+
+  it('图片模型是 qwen-image 时改走多模态同步接口，不再提交任务轮询', async () => {
+    const calls: string[] = [];
+    const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      calls.push(`${init?.method ?? 'GET'} ${String(url)}`);
+      if (String(url).includes('multimodal-generation')) {
+        return json({
+          output: { choices: [{ message: { content: [{ image: 'https://cdn.example.com/m.png' }] } }] },
+        });
+      }
+      if (String(url) === 'https://cdn.example.com/m.png') {
+        return new Response(new Uint8Array([3, 3]), {
+          status: 200,
+          headers: { 'content-type': 'image/png' },
+        });
+      }
+      throw new Error(`unexpected url ${String(url)}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await generateQwenImage(
+      { ...qwenConfig, imageModel: 'qwen-image-3.0' },
+      { prompt: '一只橘猫', texts: [], images: [], size: '1024*1024' },
+      { pollIntervalMs: 1, maxPolls: 2 },
+    );
+
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).toContain('/services/aigc/multimodal-generation/generation');
+    expect(calls.some((url) => url.includes('/api/v1/tasks/'))).toBe(false);
+
+    const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
+    expect(body.model).toBe('qwen-image-3.0');
+    expect(body.input.messages[0].content[0].text).toContain('一只橘猫');
+    expect(body.parameters.prompt_extend).toBe(true);
+    expect(body.parameters.size).toBe('1024*1024');
+    expect(result.imageSrc.startsWith('data:image/png;base64,')).toBe(true);
+  });
+
+  it('多模态接口带底图时把图片和指令一起发出去，用设置里的图改图模型', async () => {
+    let submitted: { model?: string; input?: { messages: { content: { image?: string; text?: string }[] }[] } } = {};
+    const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      if (String(url).includes('multimodal-generation')) {
+        submitted = JSON.parse(String(init?.body));
+        return json({
+          output: { choices: [{ message: { content: [{ image: 'https://cdn.example.com/e.png' }] } }] },
+        });
+      }
+      return new Response(new Uint8Array([4, 4]), {
+        status: 200,
+        headers: { 'content-type': 'image/png' },
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await generateQwenImage(
+      { ...qwenConfig, imageModel: 'qwen-image-3.0', imageEditModel: 'qwen-image-edit-plus' },
+      {
+        prompt: '把背景换成夜晚的星空',
+        texts: [],
+        images: [{ name: 'n1', dataUrl: 'data:image/png;base64,FIRST' }],
+        size: '1024*1024',
+      },
+      { pollIntervalMs: 1, maxPolls: 2 },
+    );
+
+    const content = submitted.input!.messages[0].content;
+    expect(submitted.model).toBe('qwen-image-edit-plus');
+    expect(content[0].image).toBe('data:image/png;base64,FIRST');
+    expect(content[1].text).toContain('把背景换成夜晚的星空');
+  });
+
+  it('多模态接口不截断长提示词（6000 字实测能过）', async () => {
+    let submitted: { input?: { messages: { content: { text?: string }[] }[] } } = {};
+    const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      if (String(url).includes('multimodal-generation')) {
+        submitted = JSON.parse(String(init?.body));
+        return json({
+          output: { choices: [{ message: { content: [{ image: 'https://cdn.example.com/l.png' }] } }] },
+        });
+      }
+      return new Response(new Uint8Array([5, 5]), {
+        status: 200,
+        headers: { 'content-type': 'image/png' },
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const longScript = '按这段剧本画分镜。'.repeat(200); // 1800 字
+    await generateQwenImage(
+      { ...qwenConfig, imageModel: 'qwen-image-3.0' },
+      { prompt: '画出来', texts: [longScript], images: [], size: '1024*1024' },
+      { pollIntervalMs: 1, maxPolls: 2 },
+    );
+
+    const sent = submitted.input!.messages[0].content[0].text as string;
+    expect(sent).toContain(longScript);
+  });
+
+  it('大图也要内联成 data URL，别留成会过期的临时链接', async () => {
+    const bigImage = new Uint8Array(5 * 1024 * 1024); // 5MB，1664² 出图的实际体积量级
+    const fetchMock = vi.fn(async (url: string | URL) => {
+      if (String(url).includes('multimodal-generation')) {
+        return json({
+          output: { choices: [{ message: { content: [{ image: 'https://cdn.example.com/big.png' }] } }] },
+        });
+      }
+      return new Response(bigImage, { status: 200, headers: { 'content-type': 'image/png' } });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await generateQwenImage(
+      { ...qwenConfig, imageModel: 'qwen-image-3.0' },
+      { prompt: '一只猫', texts: [], images: [], size: '1664*1664' },
+      { pollIntervalMs: 1, maxPolls: 2 },
+    );
+
+    expect(result.imageSrc.startsWith('data:image/png;base64,')).toBe(true);
   });
 });

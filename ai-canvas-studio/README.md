@@ -138,6 +138,67 @@ OpenAI 兼容协议下：无参考图走 `POST {baseUrl}/images/generations`，
 2. 环境变量填 `NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY`。
 3. 把线上域名（含 `https://<domain>/auth/callback`）加入 Supabase 的重定向白名单。
 
+## 部署到 Cloudflare（Workers）
+
+线上地址形如 `https://<worker>.<子域>.workers.dev`，代码从 GitHub 自动构建。
+仓库里已经带好配置，不用改代码：
+
+| 文件 | 作用 |
+| --- | --- |
+| `wrangler.jsonc` | 入口指向 `.open-next/worker.js`、开 `nodejs_compat`、静态资源走 assets |
+| `open-next.config.ts` | OpenNext 的 Cloudflare 适配器配置 |
+| `package.json` 的 `cf:build` / `cf:preview` / `cf:deploy` | 本地构建 / 预览 / 手动部署 |
+
+> Next 16 只能用 `@opennextjs/cloudflare`，老的 `@cloudflare/next-on-pages` 不支持。
+
+### 首次部署（Cloudflare 控制台）
+
+1. Workers & Pages → Create → **Connect GitHub** → 授权后选中本仓库。
+2. 建项目时填：
+
+   | 项 | 值 |
+   | --- | --- |
+   | Project name | `ai-canvas-studio`（要和 `wrangler.jsonc` 里的 `name` 一致） |
+   | 生产分支 | `main` |
+   | Root directory（在 Advanced settings 里） | `/ai-canvas-studio` |
+   | Build command | `pnpm cf:build` |
+   | Deploy command | `npx wrangler deploy` |
+   | Build variables | `NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY` |
+
+3. 部署完把 `https://<worker>.<子域>.workers.dev` 设为 Supabase 的 Site URL，并把
+   `https://<worker>.<子域>.workers.dev/auth/callback` 加进 Redirect URLs
+   （`http://localhost:3000/auth/callback` 留着，方便本地开发）。
+
+### 踩过的坑（照做，别改回去）
+
+- **别只往 `package.json` 加依赖而不更新 lockfile**：Cloudflare 装依赖用
+  `pnpm install --frozen-lockfile`，两边对不上会直接构建失败。本地网络装不动时可以用
+  `pnpm install --lockfile-only --registry=https://registry.npmmirror.com` 只重算 lockfile。
+- **新增带安装脚本的依赖要同时加进 `pnpm-workspace.yaml` 的 `allowBuilds`**，否则 pnpm 会以
+  `ERR_PNPM_IGNORED_BUILDS` 让整个安装失败（wrangler 会带进 `esbuild` 和 `workerd`，两个都已放行）。
+- **构建命令就写 `pnpm cf:build`，别再加 `&& pnpm install`**：Cloudflare 会先自己装一遍依赖。
+- **构建经常要排队**（实测光是初始化就要 6 分钟）。失败时点构建详情里的 **Download log** 看完整日志 ——
+  页面上显示的日志是截断的，真正的报错往往在后面。
+
+### 更新线上版本
+
+推 `main` 就自动重新构建部署：
+
+```bash
+git push origin main
+```
+
+### 本地预览与手动部署（可选）
+
+```bash
+pnpm cf:build      # 生成 .open-next/worker.js
+pnpm cf:preview    # 本地起一个接近线上的环境
+pnpm cf:deploy     # 直接部署（需先 wrangler login）
+```
+
+> 浏览器的 localStorage 按域名隔离，`localhost` 和线上域名不共享：线上第一次用要重新在
+> 「AI 设置」里填一次供应商、模型与 Key。
+
 ## 端到端测试
 
 ```bash

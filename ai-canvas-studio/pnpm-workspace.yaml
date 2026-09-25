@@ -1,6 +1,9 @@
 allowBuilds:
   sharp: false
   unrs-resolver: false
+  # wrangler 带进来的：esbuild 要装二进制、workerd 要下运行时，不给跑脚本 pnpm 会直接判定安装失败
+  esbuild: true
+  workerd: true
 minimumReleaseAgeExclude:
   - miniflare@5.20260923.0-alpha
   - wrangler@4.140.0

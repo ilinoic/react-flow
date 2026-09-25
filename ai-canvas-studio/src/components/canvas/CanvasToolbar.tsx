@@ -5,7 +5,9 @@ import { useCanvasStore } from '@/lib/canvas/store';
 import { importCanvasFile } from '@/lib/canvas/importCanvas';
 import { clearClipboard } from '@/lib/canvas/clipboard';
 
-export type CanvasTool = 'select' | 'hand';
+import type { CanvasTool } from '@/lib/canvas/interaction';
+
+export type { CanvasTool };
 
 function ToolButton({
   label,
@@ -154,6 +156,8 @@ export function CanvasToolbar({
 
   return (
     <aside className="absolute left-3 top-3 z-20 flex h-[calc(100%-24px)] w-14 flex-col items-center gap-1.5 rounded-xl border border-gray-200 bg-white/95 p-2 shadow">
+      {/* 待定：留给还没定用途的那一格，现在的语义是「什么都移不动」。 */}
+      <ToolButton label="待定" active={tool === 'tbd'} onClick={() => onToolChange('tbd')} />
       <ToolButton
         label="选择工具 V"
         active={tool === 'select'}

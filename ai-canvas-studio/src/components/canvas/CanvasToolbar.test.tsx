@@ -137,4 +137,33 @@ describe('CanvasToolbar 快捷键', () => {
     await userEvent.keyboard('{Control>}v{/Control}');
     expect(s().nodes).toHaveLength(1);
   });
+
+  it('「待定」摆在整个工具栏最上面，在「选择工具」之上', () => {
+    setup();
+    const labels = screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'));
+
+    expect(labels.indexOf('待定')).toBeGreaterThanOrEqual(0);
+    expect(labels.indexOf('待定')).toBeLessThan(labels.indexOf('选择工具 V'));
+  });
+
+  it('点「待定」会切到这个状态', async () => {
+    const { onToolChange } = setup();
+
+    await userEvent.click(screen.getByRole('button', { name: '待定' }));
+
+    expect(onToolChange).toHaveBeenCalledWith('tbd');
+  });
+
+  it('处在待定状态时那个按钮是选中的样子', () => {
+    render(
+      <CanvasToolbar
+        tool="tbd"
+        onToolChange={vi.fn()}
+        addPosition={() => ({ x: 0, y: 0 })}
+        onFitView={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: '待定' })).toHaveClass('bg-black');
+  });
 });

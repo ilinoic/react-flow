@@ -20,6 +20,7 @@ import { copyImageToClipboard } from '@/lib/canvas/clipboardImage';
 import { clipboardNodeCount } from '@/lib/canvas/clipboard';
 import { clearDraft, draftKey, loadDraft, saveDraft } from '@/lib/canvas/localDraft';
 import { isTextInputTarget } from '@/lib/canvas/contextTarget';
+import { canvasInteraction } from '@/lib/canvas/interaction';
 import { createProject, loadProjectGraph, updateProject } from '@/lib/projects/api';
 import {
   EMPTY_TABS,
@@ -91,6 +92,7 @@ function Inner() {
   const name = useCanvasStore((state) => state.name);
   const { screenToFlowPosition } = useReactFlow();
   const { fitView } = useReactFlow();
+  const interaction = canvasInteraction(tool);
 
   /** 把当前画布写进它自己那份草稿。切标签、新建之前都要先把这张存下来。 */
   const persistActive = useCallback(async () => {
@@ -496,10 +498,11 @@ function Inner() {
         }}
         snapToGrid
         snapGrid={[GRID_SIZE, GRID_SIZE]}
-        panOnDrag={tool === 'hand' ? true : [1, 2]}
-        selectionOnDrag={tool === 'select'}
+        panOnDrag={interaction.panOnDrag}
+        selectionOnDrag={interaction.selectionOnDrag}
         selectionMode={SelectionMode.Partial}
-        nodesDraggable={tool === 'select'}
+        nodesDraggable={interaction.nodesDraggable}
+        nodesConnectable={interaction.nodesConnectable}
         fitView
         deleteKeyCode={null}
         proOptions={{ hideAttribution: true }}

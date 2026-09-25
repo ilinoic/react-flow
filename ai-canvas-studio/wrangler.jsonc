@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ai-canvas-studio",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-01",
+  // Next.js 的服务端代码（@supabase/ssr、zod 等）需要 Node 兼容层
+  "compatibility_flags": ["nodejs_compat"],
+  // 静态资源由 Cloudflare 直接发，动态请求交给 worker
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": { "enabled": true }
+}

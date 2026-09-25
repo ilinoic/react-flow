@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { signInSchema, signUpSchema } from '@/lib/auth/validation';
+import { emailField, signInSchema, signUpSchema } from '@/lib/auth/validation';
 
 export function AuthForm({ mode }: { mode: 'signin' | 'signup' }) {
   const [email, setEmail] = useState('');
@@ -61,16 +61,34 @@ export function AuthForm({ mode }: { mode: 'signin' | 'signup' }) {
     setMessage('注册成功，请到邮箱点击确认链接后再登录');
   }
 
-  async function onMagicLink() {
+  /**
+   * 邮箱链接（魔法链接）：Supabase 默认邮件模板只带一条登录链接、不带 6 位验证码，
+   * 所以这里就走「点链接登录」这一条路，注册和登录共用。
+   */
+  async function onEmailLink() {
+    const parsed = emailField.safeParse(email);
+    if (!parsed.success) {
+      setMessage(parsed.error.issues[0].message);
+      return;
+    }
+
     setBusy(true);
     setMessage(null);
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.auth.signInWithOtp({
-      email,
+      email: parsed.data,
       options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     });
     setBusy(false);
-    setMessage(error ? error.message : '魔法链接已发送，请查收邮箱');
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    setMessage(
+      mode === 'signin'
+        ? '登录链接已发送，请查收邮箱（收不到就看看垃圾箱），点开邮件里的链接即可直接登录'
+        : '注册链接已发送，请查收邮箱（收不到就看看垃圾箱），点开邮件里的链接即可完成注册',
+    );
   }
 
   return (
@@ -116,11 +134,11 @@ export function AuthForm({ mode }: { mode: 'signin' | 'signup' }) {
 
       <button
         type="button"
-        onClick={onMagicLink}
+        onClick={onEmailLink}
         disabled={busy}
         className="w-full rounded border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
       >
-        改用邮箱魔法链接
+        {mode === 'signin' ? '用邮箱链接登录' : '用邮箱链接注册'}
       </button>
 
       {message && <p role="status" className="text-sm text-gray-700">{message}</p>}

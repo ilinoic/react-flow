@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { emailField, signInSchema, signUpSchema } from '@/lib/auth/validation';
+import { signInSchema, signUpSchema } from '@/lib/auth/validation';
 
 export function AuthForm({ mode }: { mode: 'signin' | 'signup' }) {
   const [email, setEmail] = useState('');
@@ -15,6 +15,10 @@ export function AuthForm({ mode }: { mode: 'signin' | 'signup' }) {
   const params = useSearchParams();
 
   const next = params.get('next') ?? '/canvas';
+  const linkError = params.get('error')
+    ? '链接已失效或已使用，请重新登录；忘记密码可以点下面的「忘记密码？」'
+    : null;
+  const notice = message ?? (mode === 'signin' ? linkError : null);
   const other = mode === 'signin'
     ? { hint: '还没有账号？', label: '去注册', href: `/signup?next=${encodeURIComponent(next)}` }
     : { hint: '已有账号？', label: '去登录', href: `/login?next=${encodeURIComponent(next)}` };
@@ -61,38 +65,8 @@ export function AuthForm({ mode }: { mode: 'signin' | 'signup' }) {
     setMessage('注册成功，请到邮箱点击确认链接后再登录');
   }
 
-  /**
-   * 邮箱链接（魔法链接）：Supabase 默认邮件模板只带一条登录链接、不带 6 位验证码，
-   * 所以这里就走「点链接登录」这一条路，注册和登录共用。
-   */
-  async function onEmailLink() {
-    const parsed = emailField.safeParse(email);
-    if (!parsed.success) {
-      setMessage(parsed.error.issues[0].message);
-      return;
-    }
-
-    setBusy(true);
-    setMessage(null);
-    const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase.auth.signInWithOtp({
-      email: parsed.data,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    });
-    setBusy(false);
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
-    setMessage(
-      mode === 'signin'
-        ? '登录链接已发送，请查收邮箱（收不到就看看垃圾箱），点开邮件里的链接即可直接登录'
-        : '注册链接已发送，请查收邮箱（收不到就看看垃圾箱），点开邮件里的链接即可完成注册',
-    );
-  }
-
   return (
-    <form onSubmit={onSubmit} className="flex w-full max-w-sm flex-col gap-4">
+    <form noValidate onSubmit={onSubmit} className="flex w-full max-w-sm flex-col gap-4">
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold">{mode === 'signin' ? '登录' : '注册'}</h1>
         <p className="text-sm text-gray-500">使用邮箱{message ? '' : '即可开始画布创作'}</p>
@@ -124,6 +98,17 @@ export function AuthForm({ mode }: { mode: 'signin' | 'signup' }) {
         />
       </label>
 
+      {mode === 'signin' && (
+        <p className="-mt-2 text-right text-sm">
+          <Link
+            href="/forgot-password"
+            className="text-gray-600 underline underline-offset-2"
+          >
+            忘记密码？
+          </Link>
+        </p>
+      )}
+
       <button
         type="submit"
         disabled={busy}
@@ -132,16 +117,7 @@ export function AuthForm({ mode }: { mode: 'signin' | 'signup' }) {
         {busy ? '处理中…' : mode === 'signin' ? '登录' : '注册'}
       </button>
 
-      <button
-        type="button"
-        onClick={onEmailLink}
-        disabled={busy}
-        className="w-full rounded border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
-      >
-        {mode === 'signin' ? '用邮箱链接登录' : '用邮箱链接注册'}
-      </button>
-
-      {message && <p role="status" className="text-sm text-gray-700">{message}</p>}
+      {notice && <p role="status" className="text-sm text-gray-700">{notice}</p>}
 
       <p className="text-center text-sm text-gray-500">
         {other.hint}

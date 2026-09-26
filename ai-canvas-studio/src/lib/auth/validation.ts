@@ -11,4 +11,12 @@ export const passwordField = z.string().min(6, { message: '密码至少 6 位' }
 export const signInSchema = z.object({ email: emailField, password: passwordField });
 export const signUpSchema = z.object({ email: emailField, password: passwordField });
 
+export const resetPasswordSchema = z
+  .object({ password: passwordField, confirm: z.string() })
+  .refine((value) => value.password === value.confirm, {
+    message: '两次输入的密码不一致',
+    path: ['confirm'],
+  });
+
 export type AuthInput = z.infer<typeof signInSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

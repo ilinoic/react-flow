@@ -240,9 +240,6 @@ function Inner() {
       // 这样以后哪怕用户把本地画布删光，也不会又把老画布接回来。
       const shouldMigrateLegacy = needsLegacyMigration();
       markLegacyMigrationDone();
-      // 送样的欢迎画布同理：只送一次，删掉之后不会再长回来
-      const shouldWelcome = needsWelcomeCanvas();
-      markWelcomeCanvasDone();
       let list = loadCanvases();
       let openTabs = loadTabs();
 
@@ -292,10 +289,12 @@ function Inner() {
         }
 
         // 第一次打开网站：直接送一张带成品图的示例画布，先让人看到成品长什么样。
-        if (shouldWelcome) {
+        // 标记只在真送出去之后才落盘：网络不通没读到模板的话，下次打开还有机会补上。
+        if (needsWelcomeCanvas()) {
           const welcome = await fetchTemplate(WELCOME_TEMPLATE.path).catch(() => null);
           if (cancelled) return;
           if (welcome) {
+            markWelcomeCanvasDone();
             const canvas = newCanvas(welcome.name || WELCOME_TEMPLATE.name);
             await saveDraft(welcome, draftKey(canvas.id));
             saveCanvases([canvas]);

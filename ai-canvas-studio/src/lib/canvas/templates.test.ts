@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -45,6 +45,13 @@ describe('画布模板', () => {
           node.position.y < other.position.y + (other.height ?? 0) && other.position.y < node.position.y + (node.height ?? 0);
         expect(overlapX && overlapY, `${node.id} 和 ${other.id} 叠在一起了`).toBe(false);
       }
+    }
+
+    // 模板里引用的静态图片必须真的在 public 下，否则线上就是一张裂图。
+    for (const node of file.nodes) {
+      const src = node.data.kind === 'text' ? node.data.referenceSrc : node.data.src;
+      if (!src || !src.startsWith('/templates/')) continue;
+      expect(existsSync(resolve(dirname(TEMPLATE_DIR), src.slice(1))), `缺文件 ${src}`).toBe(true);
     }
 
     expect(file.viewport.zoom).toBeGreaterThan(0);

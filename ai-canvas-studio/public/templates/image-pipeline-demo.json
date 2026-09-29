@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "name": "出图三连 · 成品示例",
+  "exportedAt": "2026-09-29T00:00:00.000Z",
+  "viewport": { "x": 24, "y": 32, "zoom": 0.7 },
+  "nodes": [
+    {
+      "id": "text_help",
+      "type": "text",
+      "position": { "x": 0, "y": 0 },
+      "width": 360,
+      "height": 340,
+      "data": {
+        "kind": "text",
+        "text": "这是「出图三连」跑完的样子：\n1. 左下「提示词」节点写要画的东西，也就是当时用的那句话。\n2. 中间「出图」节点是它出来的第一张。\n3. 右边「改图」节点是在第一张上按指令改的：把背景换成夜晚的城市街景。\n4. 想自己跑一遍，就改提示词、点节点下面的「AI 生成」，结果写回本节点。\n连线不用动：箭头指向谁，谁就拿到上游的提示词和参考图。",
+        "prompt": "",
+        "ai": { "messages": [], "status": "idle" },
+        "aiOpen": false
+      }
+    },
+    {
+      "id": "ref_image",
+      "type": "reference",
+      "position": { "x": 400, "y": 0 },
+      "width": 240,
+      "height": 320,
+      "data": {
+        "kind": "reference",
+        "src": null,
+        "prompt": "",
+        "ai": { "messages": [], "status": "idle" },
+        "aiOpen": false
+      }
+    },
+    {
+      "id": "text_prompt",
+      "type": "text",
+      "position": { "x": 0, "y": 440 },
+      "width": 320,
+      "height": 240,
+      "data": {
+        "kind": "text",
+        "text": "一只橘猫坐在窗边看书，清晨的柔光，浅景深，35mm 胶片质感，暖色调",
+        "prompt": "",
+        "ai": { "messages": [], "status": "idle" },
+        "aiOpen": true
+      }
+    },
+    {
+      "id": "image_draft",
+      "type": "image",
+      "position": { "x": 400, "y": 440 },
+      "width": 260,
+      "height": 340,
+      "data": {
+        "kind": "image",
+        "src": "/templates/image-pipeline-demo/draft.png",
+        "alt": "出图结果：清晨窗边看书的橘猫",
+        "prompt": "",
+        "ai": { "messages": [], "status": "idle" },
+        "aiOpen": true
+      }
+    },
+    {
+      "id": "image_edit",
+      "type": "image",
+      "position": { "x": 780, "y": 440 },
+      "width": 260,
+      "height": 340,
+      "data": {
+        "kind": "image",
+        "src": "/templates/image-pipeline-demo/edit.png",
+        "alt": "改图结果：同样的橘猫，背景换成夜晚的城市街景",
+        "prompt": "把背景换成夜晚的城市街景，暖色路灯，主体保持不动",
+        "ai": { "messages": [], "status": "idle" },
+        "aiOpen": true
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_prompt_draft",
+      "source": "text_prompt",
+      "target": "image_draft",
+      "type": "reference",
+      "animated": true,
+      "data": { "relation": "reference" }
+    },
+    {
+      "id": "edge_ref_draft",
+      "source": "ref_image",
+      "target": "image_draft",
+      "type": "reference",
+      "animated": true,
+      "data": { "relation": "reference" }
+    },
+    {
+      "id": "edge_draft_edit",
+      "source": "image_draft",
+      "target": "image_edit",
+      "type": "reference",
+      "animated": true,
+      "data": { "relation": "reference" }
+    }
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "name": "出图三连（模板）",
+  "exportedAt": "2026-09-29T00:00:00.000Z",
+  "viewport": { "x": 24, "y": 32, "zoom": 0.7 },
+  "nodes": [
+    {
+      "id": "text_help",
+      "type": "text",
+      "position": { "x": 0, "y": 0 },
+      "width": 360,
+      "height": 340,
+      "data": {
+        "kind": "text",
+        "text": "这个模板怎么用：\n1. 在下面「提示词」节点里写你要画的东西；不会写就先点它下面的「AI 生成」，让模型帮你润色。\n2. 「出图」节点点「AI 生成」，得到第一张。\n3. 在「改图」节点里写清楚要怎么改，例如「把背景换成夜晚的城市街景」，再点「AI 生成」。\n4. 想照着一张现成的图画，就把图放进右上角那个参考图节点；空着也没关系，生成本来就支持从零画。\n连线不用动：箭头指向谁，谁就拿到上游的提示词和参考图。",
+        "prompt": "",
+        "ai": { "messages": [], "status": "idle" },
+        "aiOpen": false
+      }
+    },
+    {
+      "id": "ref_image",
+      "type": "reference",
+      "position": { "x": 400, "y": 0 },
+      "width": 240,
+      "height": 320,
+      "data": {
+        "kind": "reference",
+        "src": null,
+        "prompt": "",
+        "ai": { "messages": [], "status": "idle" },
+        "aiOpen": false
+      }
+    },
+    {
+      "id": "text_prompt",
+      "type": "text",
+      "position": { "x": 0, "y": 440 },
+      "width": 320,
+      "height": 240,
+      "data": {
+        "kind": "text",
+        "text": "一只橘猫坐在窗边看书，清晨的柔光，浅景深，35mm 胶片质感，暖色调",
+        "prompt": "",
+        "ai": { "messages": [], "status": "idle" },
+        "aiOpen": true
+      }
+    },
+    {
+      "id": "image_draft",
+      "type": "image",
+      "position": { "x": 400, "y": 440 },
+      "width": 260,
+      "height": 340,
+      "data": {
+        "kind": "image",
+        "src": null,
+        "alt": "出图结果",
+        "prompt": "",
+        "ai": { "messages": [], "status": "idle" },
+        "aiOpen": true
+      }
+    },
+    {
+      "id": "image_edit",
+      "type": "image",
+      "position": { "x": 780, "y": 440 },
+      "width": 260,
+      "height": 340,
+      "data": {
+        "kind": "image",
+        "src": null,
+        "alt": "改图结果",
+        "prompt": "把背景换成夜晚的城市街景，暖色路灯，主体保持不动",
+        "ai": { "messages": [], "status": "idle" },
+        "aiOpen": true
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_prompt_draft",
+      "source": "text_prompt",
+      "target": "image_draft",
+      "type": "reference",
+      "animated": true,
+      "data": { "relation": "reference" }
+    },
+    {
+      "id": "edge_ref_draft",
+      "source": "ref_image",
+      "target": "image_draft",
+      "type": "reference",
+      "animated": true,
+      "data": { "relation": "reference" }
+    },
+    {
+      "id": "edge_draft_edit",
+      "source": "image_draft",
+      "target": "image_edit",
+      "type": "reference",
+      "animated": true,
+      "data": { "relation": "reference" }
+    }
+  ]
+}

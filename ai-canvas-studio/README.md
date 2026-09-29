@@ -62,6 +62,13 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<publishable key>
    - `Redirect URLs` 加入 `http://localhost:3000/auth/callback`
 4. 打开 `/signup` 用真实邮箱注册，收信点确认链接后即可登录。
 
+> **注册邮件收不到 / Outlook 收不到**：Supabase 自带的邮箱服务只适合试用，每小时只允许几发，
+> 而且微软系邮箱（Outlook / Hotmail / Live）常年把它当垃圾邮件拦掉。要给别人用就配自有 SMTP：
+> Authentication → Emails → SMTP Settings 填发信服务商（Resend / SendGrid / 阿里云邮件推送都行）的
+> host、port、用户名、密码，From 用自己域名上的邮箱；顺手把 `Site URL` 改成线上域名，
+> `Redirect URLs` 里加上 `https://<域名>/auth/callback`。配完在 `/login` 输邮箱密码点登录，
+> 页面会提示「邮箱还没确认」并给出**「重新发送确认邮件」**按钮，可以直接验证发信是否通了。
+
 ## 自定义 AI 接口
 
 打开 `/settings` 填：供应商（模拟 / OpenAI 兼容）、Base URL、API Key、图片模型、图改图模型、文本模型、默认尺寸，
@@ -80,8 +87,13 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<publishable key>
 | 预设 | Base URL | 图片模型 | 图改图模型 | 文本模型 |
 | --- | --- | --- | --- | --- |
 | 模拟模式 | — | — | — | — |
-| OpenAI 兼容接口 | `https://api.openai.com/v1` | `gpt-image-1` | `gpt-image-1` | `gpt-4o-mini` |
-| 通义千问 · 阿里云百炼 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `wanx2.1-t2i-turbo` | `wanx2.1-imageedit` | `qwen-plus` |
+| OpenAI 兼容接口 | `https://api.openai.com/v1` | `gpt-image-2.5-flare` | `gpt-image-2.5-sunburst` | `gpt-6-luna` |
+| 通义千问 · 阿里云百炼 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-image-3.0-pro` | `qwen-image-3.0-pro` | `qwen3.8-max` |
+
+> 2026-09 核对：OpenAI 出图分了两档（`gpt-image-2.5-flare` 快、`gpt-image-2.5-sunburst` 改图准），
+> 文本是 GPT-6 家族的 `gpt-6-luna`；百炼那边文生图与图改图都由 `qwen-image-3.0-pro` 承担
+> （官方「图片编辑」推荐的也是它），文本是 `qwen3.8-max`。
+> 老浏览器里存着旧配置时表单显示的还是旧名字，去 `/settings` 点「套用最新预设」再保存即可。
 
 只要在 API Key 里开始输入内容，供应商会自动从"模拟模式"切到 OpenAI 兼容协议，避免"填了 Key 却还在跑占位图"。
 
@@ -225,7 +237,9 @@ supabase         建表脚本
 
 ## 常见问题
 
-- **收不到确认邮件**：检查 Supabase 的 Email 模板与发信额度；也可在登录页用「邮箱魔法链接」。
+- **收不到确认邮件**：先在垃圾邮件里找。Supabase 默认发信服务每小时只允许几发（连续试会被限流），
+  微软系邮箱还会直接拦掉，建议按上面「注册邮件收不到」那节配自有 SMTP。
+  没确认成功的账号，在 `/login` 输邮箱密码点登录会提示「邮箱还没确认」，旁边就是**「重新发送确认邮件」**按钮。
 - **图片显示不出来**：图片存在私有桶，节点里用的是 1 小时签名 URL；重新上传或刷新页面即可。
 - **生成报 401 / 502**：401 多为未登录或 Key 失效，502 是上游接口报错，面板里会显示上游原文。
 - **对齐条不出现**：需要选中 2 个以上节点（Shift 点选或框选）。

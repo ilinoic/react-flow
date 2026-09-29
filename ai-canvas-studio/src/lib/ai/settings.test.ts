@@ -53,8 +53,15 @@ describe('AI 设置读写', () => {
     expect(qwen.label).toContain('千问');
   });
 
-  it('千问预设的图改图模型用最新的编辑模型', () => {
-    expect(PROVIDER_PRESETS.qwen.imageEditModel).toBe('qwen-image-edit-max');
+  it('千问预设的图改图模型用同一代旗舰模型', () => {
+    expect(PROVIDER_PRESETS.qwen.imageEditModel).toBe('qwen-image-3.0-pro');
+  });
+
+  it('OpenAI 预设给的是当前一代的图片与文本模型', () => {
+    const openai = PROVIDER_PRESETS['openai-compatible'];
+    expect(openai.imageModel).toBe('gpt-image-2.5-flare');
+    expect(openai.imageEditModel).toBe('gpt-image-2.5-sunburst');
+    expect(openai.textModel).toBe('gpt-6-luna');
   });
 
   it('千问预设不再用老的 wanx 模型', () => {

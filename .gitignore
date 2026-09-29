@@ -1,6 +1,9 @@
 # 临时工具目录（脚手架缓存、探针项目），不纳入版本管理
 .tools/
 
+# 本机跑 next dev 时重定向的缓存目录（见 ai-canvas-studio/README.md 的启动说明）
+.cache/
+
 # 依赖与构建产物
 node_modules/
 .next/

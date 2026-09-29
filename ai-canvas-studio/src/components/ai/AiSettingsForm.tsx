@@ -14,15 +14,29 @@ import type { AiConfig, AiProvider } from '@/lib/ai/types';
 const FIELDS: { key: keyof AiConfig; label: string; placeholder?: string; secret?: boolean }[] = [
   { key: 'baseUrl', label: 'Base URL', placeholder: 'https://api.openai.com/v1' },
   { key: 'apiKey', label: 'API Key', placeholder: 'sk-...', secret: true },
-  { key: 'imageModel', label: '图片模型', placeholder: 'gpt-image-1' },
+  { key: 'imageModel', label: '图片模型', placeholder: 'gpt-image-2.5-flare' },
   {
     key: 'imageEditModel',
     label: '图改图模型',
-    placeholder: '例如 qwen-image-edit-max（留空则按图片模型自动挑）',
+    placeholder: '例如 gpt-image-2.5-sunburst（留空则按图片模型自动挑）',
   },
-  { key: 'textModel', label: '文本模型', placeholder: 'gpt-4o-mini' },
+  { key: 'textModel', label: '文本模型', placeholder: 'gpt-6-luna' },
   { key: 'imageSize', label: '默认图片尺寸', placeholder: '1024x1024' },
 ];
+
+/** 套用某个供应商的预设：地址、图片模型、图改图模型、文本模型、尺寸一起换，Key 保持不动。 */
+function withPreset(config: AiConfig, provider: AiProvider): AiConfig {
+  const preset = PROVIDER_PRESETS[provider];
+  return {
+    ...config,
+    provider,
+    baseUrl: preset.baseUrl,
+    imageModel: preset.imageModel,
+    imageEditModel: preset.imageEditModel,
+    textModel: preset.textModel,
+    imageSize: preset.imageSize,
+  };
+}
 
 export function AiSettingsForm() {
   const stored = useSyncExternalStore(
@@ -60,18 +74,14 @@ export function AiSettingsForm() {
   }
 
   function onProviderChange(provider: AiProvider) {
-    setDraft(() => {
-      const preset = PROVIDER_PRESETS[provider];
-      return {
-        ...config,
-        provider,
-        baseUrl: preset.baseUrl,
-        imageModel: preset.imageModel,
-        imageEditModel: preset.imageEditModel,
-        textModel: preset.textModel,
-        imageSize: preset.imageSize,
-      };
-    });
+    setDraft(() => withPreset(config, provider));
+  }
+
+  // 老版本存下来的模型名会一直留在表单里（预设只在「切换供应商」时才套用），
+  // 所以给一个显式入口，一键换成当前预设里的最新模型名。
+  function onApplyPreset() {
+    setDraft(() => withPreset(config, config.provider));
+    setStatus('已换成该供应商当前预设的地址与模型名，点「保存」后生效');
   }
 
   async function onTest() {
@@ -102,18 +112,27 @@ export function AiSettingsForm() {
     <div className="flex w-full max-w-lg flex-col gap-4">
       <label className="flex flex-col gap-1 text-sm">
         供应商
-        <select
-          aria-label="供应商"
-          value={config.provider}
-          onChange={(event) => onProviderChange(event.target.value as AiProvider)}
-          className="rounded border border-gray-300 px-3 py-2"
-        >
-          {(Object.keys(PROVIDER_PRESETS) as AiProvider[]).map((key) => (
-            <option key={key} value={key}>
-              {PROVIDER_PRESETS[key].label}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          <select
+            aria-label="供应商"
+            value={config.provider}
+            onChange={(event) => onProviderChange(event.target.value as AiProvider)}
+            className="w-full rounded border border-gray-300 px-3 py-2"
+          >
+            {(Object.keys(PROVIDER_PRESETS) as AiProvider[]).map((key) => (
+              <option key={key} value={key}>
+                {PROVIDER_PRESETS[key].label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={onApplyPreset}
+            className="shrink-0 rounded border border-gray-300 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50"
+          >
+            套用最新预设
+          </button>
+        </div>
       </label>
 
       {FIELDS.map((field) => (

@@ -3,13 +3,19 @@ import type { AiConfig, AiProvider } from './types';
 
 export const AI_SETTINGS_KEY = 'ai-canvas:settings';
 
+// 2026-09 对着官方文档核过一轮：
+// - developer docs「image generation」：出图用 gpt-image-2.5-flare（快），
+//   按指令改图用 gpt-image-2.5-sunburst（改图精度更高）
+// - developer docs「latest model」：文本走 GPT-6 家族的 gpt-6-luna（便宜快，磨提示词够用；
+//   想要更强可以手填 gpt-6-sol / gpt-6-astra）
+// 别再回落到 gpt-image-1 / gpt-4o-mini 那一代。
 export const DEFAULT_AI_SETTINGS: AiConfig = {
   provider: 'mock',
   baseUrl: 'https://api.openai.com/v1',
   apiKey: '',
-  imageModel: 'gpt-image-1',
-  imageEditModel: 'gpt-image-1',
-  textModel: 'gpt-4o-mini',
+  imageModel: 'gpt-image-2.5-flare',
+  imageEditModel: 'gpt-image-2.5-sunburst',
+  textModel: 'gpt-6-luna',
   imageSize: '1024x1024',
 };
 
@@ -28,26 +34,27 @@ export const PROVIDER_PRESETS: Record<AiProvider, ProviderPreset> = {
   mock: {
     label: '模拟模式（不联网，出占位图）',
     baseUrl: 'https://api.openai.com/v1',
-    imageModel: 'gpt-image-1',
-    imageEditModel: 'gpt-image-1',
-    textModel: 'gpt-4o-mini',
+    imageModel: 'gpt-image-2.5-flare',
+    imageEditModel: 'gpt-image-2.5-sunburst',
+    textModel: 'gpt-6-luna',
     imageSize: '1024x1024',
   },
   'openai-compatible': {
     label: 'OpenAI 兼容接口（自定义地址）',
     baseUrl: 'https://api.openai.com/v1',
-    imageModel: 'gpt-image-1',
-    imageEditModel: 'gpt-image-1',
-    textModel: 'gpt-4o-mini',
+    imageModel: 'gpt-image-2.5-flare',
+    imageEditModel: 'gpt-image-2.5-sunburst',
+    textModel: 'gpt-6-luna',
     imageSize: '1024x1024',
   },
   qwen: {
     label: '通义千问 · 阿里云百炼',
     baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    // 2026-09 查过百炼的模型列表：qwen-image-3.0-pro / qwen-image-edit-max / qwen3.8-max
-    // 是当时最新的三件套，这里跟着更新，别再回落到老的 wanx2.1 那一代。
+    // 2026-09-24 查过百炼的模型列表（help.aliyun.com/zh/model-studio/image-model）：
+    // 文生图和图改图都用 qwen-image-3.0-pro（官方「图片编辑」一节的推荐就是它），
+    // 文本用 qwen3.8-max。老的 wanx2.1 / wan2.1 那一代已经标成 Legacy，别再回落过去。
     imageModel: 'qwen-image-3.0-pro',
-    imageEditModel: 'qwen-image-edit-max',
+    imageEditModel: 'qwen-image-3.0-pro',
     textModel: 'qwen3.8-max',
     imageSize: '1024*1024',
   },

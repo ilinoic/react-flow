@@ -20,7 +20,26 @@ create policy "own projects" on public.projects
 create index if not exists projects_user_updated_idx
   on public.projects (user_id, updated_at desc);
 
--- 2) 私有图片桶（画布里的图片节点上传到此）
+-- 3) AI 设置表：模型名、地址这些跟着账号走，换设备不用重填。
+--    注意：故意不存 API Key —— Key 只留在各自设备的浏览器里。
+create table if not exists public.ai_settings (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  provider text not null default 'mock',
+  base_url text not null default '',
+  image_model text not null default '',
+  image_edit_model text not null default '',
+  text_model text not null default '',
+  image_size text not null default '',
+  updated_at timestamptz not null default now()
+);
+
+alter table public.ai_settings enable row level security;
+
+drop policy if exists "own ai settings" on public.ai_settings;
+create policy "own ai settings" on public.ai_settings
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- 4) 私有图片桶（画布里的图片节点上传到此）
 insert into storage.buckets (id, name, public)
 values ('canvas-images', 'canvas-images', false)
 on conflict (id) do nothing;

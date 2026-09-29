@@ -6,6 +6,7 @@ import { AuthForm } from './AuthForm';
 const mocks = vi.hoisted(() => ({
   signInWithPassword: vi.fn(),
   signUp: vi.fn(),
+  resend: vi.fn(),
   replace: vi.fn(),
   search: 'next=/projects',
 }));
@@ -15,6 +16,7 @@ vi.mock('@/lib/supabase/client', () => ({
     auth: {
       signInWithPassword: mocks.signInWithPassword,
       signUp: mocks.signUp,
+      resend: mocks.resend,
     },
   }),
 }));
@@ -128,5 +130,58 @@ describe('邮件链接失效时的提示', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/链接已失效或已使用/);
 
     mocks.search = 'next=/projects';
+  });
+});
+
+describe('确认邮件的重发入口', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+    mocks.search = 'next=/projects';
+  });
+
+  it('登录提示「邮箱未确认」时给出重发按钮，点了就重新发确认邮件', async () => {
+    render(<AuthForm mode="signin" />);
+    mocks.signInWithPassword.mockResolvedValue({ error: { message: 'Email not confirmed' } });
+
+    await userEvent.type(screen.getByLabelText('邮箱'), 'me@outlook.com');
+    await userEvent.type(screen.getByLabelText('密码'), '123456');
+    await userEvent.click(screen.getByRole('button', { name: '登录' }));
+
+    expect(screen.getByRole('status')).toHaveTextContent(/邮箱还没确认/);
+
+    mocks.resend.mockResolvedValue({ error: null });
+    await userEvent.click(screen.getByRole('button', { name: '重新发送确认邮件' }));
+
+    expect(mocks.resend).toHaveBeenCalledWith({
+      type: 'signup',
+      email: 'me@outlook.com',
+      options: { emailRedirectTo: expect.stringContaining('/auth/callback') },
+    });
+    await expect(screen.findByRole('status')).resolves.toHaveTextContent(/已重新发送/);
+  });
+
+  it('别的登录错误不给重发按钮', async () => {
+    render(<AuthForm mode="signin" />);
+    mocks.signInWithPassword.mockResolvedValue({
+      error: { message: 'Invalid login credentials' },
+    });
+
+    await userEvent.type(screen.getByLabelText('邮箱'), 'me@outlook.com');
+    await userEvent.type(screen.getByLabelText('密码'), '123456');
+    await userEvent.click(screen.getByRole('button', { name: '登录' }));
+
+    expect(screen.queryByRole('button', { name: '重新发送确认邮件' })).toBeNull();
+  });
+
+  it('邮件发送被限流时翻成中文提示', async () => {
+    render(<AuthForm mode="signup" />);
+    mocks.signUp.mockResolvedValue({ data: {}, error: { message: 'Email rate limit exceeded' } });
+
+    await userEvent.type(screen.getByLabelText('邮箱'), 'me@outlook.com');
+    await userEvent.type(screen.getByLabelText('密码'), '123456');
+    await userEvent.click(screen.getByRole('button', { name: '注册' }));
+
+    expect(screen.getByRole('status')).toHaveTextContent(/邮件发送太频繁/);
   });
 });

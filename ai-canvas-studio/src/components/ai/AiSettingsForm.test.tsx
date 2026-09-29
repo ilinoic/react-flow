@@ -94,7 +94,34 @@ describe('AiSettingsForm', () => {
     await userEvent.selectOptions(screen.getByLabelText('供应商'), 'qwen');
 
     expect((screen.getByLabelText('图改图模型') as HTMLInputElement).value).toBe(
-      'qwen-image-edit-max',
+      'qwen-image-3.0-pro',
     );
+  });
+
+  it('存着老模型名时，「套用最新预设」能一键换成当前预设', async () => {
+    localStorage.setItem(
+      AI_SETTINGS_KEY,
+      JSON.stringify({
+        provider: 'openai-compatible',
+        baseUrl: 'https://api.openai.com/v1',
+        apiKey: 'sk-old',
+        imageModel: 'gpt-image-1',
+        imageEditModel: 'gpt-image-1',
+        textModel: 'gpt-4o-mini',
+        imageSize: '1024x1024',
+      }),
+    );
+    render(<AiSettingsForm />);
+
+    await userEvent.click(screen.getByRole('button', { name: '套用最新预设' }));
+
+    expect((screen.getByLabelText('图片模型') as HTMLInputElement).value).toBe(
+      'gpt-image-2.5-flare',
+    );
+    expect((screen.getByLabelText('图改图模型') as HTMLInputElement).value).toBe(
+      'gpt-image-2.5-sunburst',
+    );
+    expect((screen.getByLabelText('文本模型') as HTMLInputElement).value).toBe('gpt-6-luna');
+    expect((screen.getByLabelText('API Key') as HTMLInputElement).value).toBe('sk-old');
   });
 });

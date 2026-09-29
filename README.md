@@ -81,16 +81,21 @@
 | 预设 | Base URL | 图片模型 | 图改图模型 | 文本模型 |
 | --- | --- | --- | --- | --- |
 | 模拟模式 | — | — | — | — |
-| OpenAI 兼容接口 | `https://api.openai.com/v1` | `gpt-image-1` | `gpt-image-1` | `gpt-4o-mini` |
-| 通义千问 · 阿里云百炼 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `wanx2.1-t2i-turbo` | `wanx2.1-imageedit` | `qwen-plus` |
+| OpenAI 兼容接口 | `https://api.openai.com/v1` | `gpt-image-2.5-flare` | `gpt-image-2.5-sunburst` | `gpt-6-luna` |
+| 通义千问 · 阿里云百炼 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-image-3.0-pro` | `qwen-image-3.0-pro` | `qwen3.8-max` |
 
 只要 Base URL 说的是 OpenAI 兼容协议，任何中转站、自建网关、本地模型服务都能接。
+
+> 这些模型名会随厂商换代。老浏览器里存着旧配置时，表单显示的还是当年存下的名字 ——
+> 去「AI 设置」点一下 **「套用最新预设」**（界面上的按钮）再保存，就会换成当前预设的地址与模型名，Key 不用重填。
 
 ---
 
 ## 常见问题
 
-- **收不到确认邮件**：看看垃圾邮件；Supabase 免费邮箱额度有限，也可以等一会儿再试一次
+- **收不到确认邮件（Outlook / Hotmail 尤其常见）**：先在垃圾邮件里找；登录页输邮箱密码点登录，
+  会提示「邮箱还没确认」并给出**「重新发送确认邮件」**按钮。默认邮箱服务每小时只允许几发，连续重发会被限流。
+  微软系邮箱常年拦截 Supabase 的默认发信服务器，要彻底解决就配自有 SMTP（见 `ai-canvas-studio/README.md`）
 - **生成报 401**：多半是 Key 失效或没填；去「AI 设置」重新填并点「测试连接」
 - **生成报 502**：上游接口自己报错，面板里会显示上游原文，照着改模型名或提示词
 - **图片显示不出来**：云端图片存在私有桶，节点里用的是 1 小时签名 URL，刷新页面或重新上传即可

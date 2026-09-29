@@ -21,6 +21,7 @@ import { clipboardNodeCount } from '@/lib/canvas/clipboard';
 import { clearDraft, draftKey, loadDraft, saveDraft } from '@/lib/canvas/localDraft';
 import { isTextInputTarget } from '@/lib/canvas/contextTarget';
 import { canvasInteraction } from '@/lib/canvas/interaction';
+import { WELCOME_TEMPLATE, fetchTemplate, type CanvasTemplate } from '@/lib/canvas/templates';
 import { createProject, loadProjectGraph, updateProject } from '@/lib/projects/api';
 import {
   EMPTY_TABS,
@@ -29,10 +30,12 @@ import {
   closeTab,
   loadCanvases,
   loadTabs,
+  markWelcomeCanvasDone,
   markLegacyMigrationDone,
   newCanvas,
   needsLocalEntry,
   needsLegacyMigration,
+  needsWelcomeCanvas,
   openTab,
   pruneCanvases,
   renameCanvas,
@@ -46,6 +49,7 @@ import { CanvasToolbar, type CanvasTool } from './CanvasToolbar';
 import { AlignmentBar } from './AlignmentBar';
 import { ContextMenu } from './ContextMenu';
 import { CanvasTabs } from './CanvasTabs';
+import { TemplateMenu } from './TemplateMenu';
 import { CanvasSettingsMenu } from './CanvasSettingsMenu';
 import { edgeTypes } from './edgeTypes';
 import { TextNode } from './nodes/TextNode';
@@ -70,6 +74,7 @@ function Inner() {
   const [paneMenu, setPaneMenu] = useState<PaneMenu | null>(null);
   const [nodeMenu, setNodeMenu] = useState<NodeMenu | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('unsaved');
+  const [templateError, setTemplateError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [canvases, setCanvases] = useState<LocalCanvas[]>([]);
   const [tabs, setTabs] = useState<OpenTabs>(EMPTY_TABS);
@@ -139,6 +144,37 @@ function Inner() {
     setSaveState('unsaved');
   }, [persistActive]);
 
+  /** 从站点自带模板开一张新画布：草稿写进它自己那份，再挂上一个新标签。 */
+  const openTemplate = useCallback(
+    async (template: CanvasTemplate) => {
+      setTemplateError(null);
+      const file = await fetchTemplate(template.path).catch(() => null);
+      if (!file) {
+        setTemplateError(`打不开模板「${template.name}」，检查一下网络再试一次`);
+        return;
+      }
+      await persistActive();
+      const canvas = newCanvas(file.name || template.name);
+      const { kept, dropped } = pruneCanvases(upsertCanvas(canvasesRef.current, canvas), tabsRef.current.open);
+      dropped.forEach((id) => clearDraft(draftKey(id)));
+      saveCanvases(kept);
+      setCanvases(kept);
+      const nextTabs = openTab(tabsRef.current, canvas.id);
+      saveTabs(nextTabs);
+      setTabs(nextTabs);
+      activeIdRef.current = canvas.id;
+      useCanvasStore.getState().loadCanvas(file);
+      try {
+        await saveDraft(file, draftKey(canvas.id));
+        setSaveState('local');
+      } catch {
+        setSaveState('error');
+      }
+      void fitView({ padding: 0.2 });
+    },
+    [fitView, persistActive],
+  );
+
   const switchToCanvas = useCallback(
     async (id: string) => {
       if (activeIdRef.current === id) return;
@@ -204,6 +240,9 @@ function Inner() {
       // 这样以后哪怕用户把本地画布删光，也不会又把老画布接回来。
       const shouldMigrateLegacy = needsLegacyMigration();
       markLegacyMigrationDone();
+      // 送样的欢迎画布同理：只送一次，删掉之后不会再长回来
+      const shouldWelcome = needsWelcomeCanvas();
+      markWelcomeCanvasDone();
       let list = loadCanvases();
       let openTabs = loadTabs();
 
@@ -238,28 +277,47 @@ function Inner() {
         const legacy = shouldMigrateLegacy ? await loadDraft() : null;
         if (cancelled) return;
 
-        if (!legacy) {
-          // 删光就是删光，不再凭空造一张出来；这张空白画布动过了才会留下记录
-          activeIdRef.current = null;
-          saveCanvases([]);
-          saveTabs(EMPTY_TABS);
-          setCanvases([]);
-          setTabs(EMPTY_TABS);
+        if (legacy) {
+          const canvas = newCanvas(legacy.name || '未命名画布');
+          await saveDraft(legacy, draftKey(canvas.id));
+          saveCanvases([canvas]);
+          saveTabs({ open: [canvas.id], activeId: canvas.id });
+          activeIdRef.current = canvas.id;
+          setCanvases([canvas]);
+          setTabs({ open: [canvas.id], activeId: canvas.id });
           readyRef.current = true;
-          setSaveState('unsaved');
+          useCanvasStore.getState().loadCanvas(legacy);
+          setSaveState('local');
           return;
         }
 
-        const canvas = newCanvas(legacy.name || '未命名画布');
-        await saveDraft(legacy, draftKey(canvas.id));
-        saveCanvases([canvas]);
-        saveTabs({ open: [canvas.id], activeId: canvas.id });
-        activeIdRef.current = canvas.id;
-        setCanvases([canvas]);
-        setTabs({ open: [canvas.id], activeId: canvas.id });
+        // 第一次打开网站：直接送一张带成品图的示例画布，先让人看到成品长什么样。
+        if (shouldWelcome) {
+          const welcome = await fetchTemplate(WELCOME_TEMPLATE.path).catch(() => null);
+          if (cancelled) return;
+          if (welcome) {
+            const canvas = newCanvas(welcome.name || WELCOME_TEMPLATE.name);
+            await saveDraft(welcome, draftKey(canvas.id));
+            saveCanvases([canvas]);
+            saveTabs({ open: [canvas.id], activeId: canvas.id });
+            activeIdRef.current = canvas.id;
+            setCanvases([canvas]);
+            setTabs({ open: [canvas.id], activeId: canvas.id });
+            readyRef.current = true;
+            useCanvasStore.getState().loadCanvas(welcome);
+            setSaveState('local');
+            return;
+          }
+        }
+
+        // 删光就是删光，不再凭空造一张出来；这张空白画布动过了才会留下记录
+        activeIdRef.current = null;
+        saveCanvases([]);
+        saveTabs(EMPTY_TABS);
+        setCanvases([]);
+        setTabs(EMPTY_TABS);
         readyRef.current = true;
-        useCanvasStore.getState().loadCanvas(legacy);
-        setSaveState('local');
+        setSaveState('unsaved');
         return;
       }
 
@@ -424,7 +482,17 @@ function Inner() {
           onClose={(id) => void onCloseTab(id)}
           onCreate={() => void openNewCanvas()}
         />
+        <TemplateMenu onOpenTemplate={(template) => void openTemplate(template)} />
       </header>
+
+      {templateError && (
+        <p
+          role="alert"
+          className="absolute left-20 top-14 z-20 rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700 shadow"
+        >
+          {templateError}
+        </p>
+      )}
 
       {/* 画布名与保存挪到第二行，把上面整行留给标签页 */}
       <div className="absolute right-3 top-14 z-20 flex items-center gap-2 rounded-lg border border-gray-200 bg-white/95 px-2 py-1.5 text-sm shadow">

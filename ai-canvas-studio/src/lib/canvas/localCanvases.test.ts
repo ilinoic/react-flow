@@ -9,8 +9,10 @@ import {
   loadTabs,
   newCanvas,
   markLegacyMigrationDone,
+  markWelcomeCanvasDone,
   needsLocalEntry,
   needsLegacyMigration,
+  needsWelcomeCanvas,
   openTab,
   pruneCanvases,
   renameCanvas,
@@ -93,6 +95,12 @@ describe('本地画布列表', () => {
     expect(needsLegacyMigration()).toBe(true);
     markLegacyMigrationDone();
     expect(needsLegacyMigration()).toBe(false);
+  });
+
+  it('欢迎画布也只送一次：删掉之后再刷新不会自己长回来', () => {
+    expect(needsWelcomeCanvas()).toBe(true);
+    markWelcomeCanvasDone();
+    expect(needsWelcomeCanvas()).toBe(false);
   });
 });
 

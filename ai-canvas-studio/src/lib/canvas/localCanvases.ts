@@ -8,6 +8,7 @@
 export const CANVAS_LIST_KEY = 'ai-canvas:canvases';
 export const OPEN_TABS_KEY = 'ai-canvas:open-tabs';
 export const MIGRATION_KEY = 'ai-canvas:tabs-migrated';
+export const WELCOME_KEY = 'ai-canvas:welcome-template';
 /** 本地最多留这么多张画布，新建时把最老的、而且没开着的丢掉。 */
 export const MAX_LOCAL_CANVASES = 20;
 
@@ -162,4 +163,18 @@ export function needsLegacyMigration(): boolean {
 export function markLegacyMigrationDone(): void {
   if (typeof localStorage === 'undefined') return;
   localStorage.setItem(MIGRATION_KEY, '1');
+}
+
+/**
+ * 第一次打开网站时要不要送一张站点自带模板当见面礼。
+ * 只送一次：删掉之后再刷新不会自己长回来（见 markWelcomeCanvasDone）。
+ */
+export function needsWelcomeCanvas(): boolean {
+  if (typeof localStorage === 'undefined') return false;
+  return localStorage.getItem(WELCOME_KEY) === null;
+}
+
+export function markWelcomeCanvasDone(): void {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(WELCOME_KEY, '1');
 }

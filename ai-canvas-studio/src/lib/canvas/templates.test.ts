@@ -1,12 +1,14 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { parseCanvasFile } from './serialization';
+import { CANVAS_TEMPLATES, fetchTemplate } from './templates';
 
 // 模板是给用户「导入画布」用的，格式必须和导出文件一致；
 // 这里直接把 public/templates 下的每个模板喂给真正的解析器，防止手写 JSON 写坏。
 const TEMPLATE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../../public/templates');
+const PUBLIC_DIR = dirname(TEMPLATE_DIR);
 
 const templates = readdirSync(TEMPLATE_DIR).filter((name) => name.endsWith('.json'));
 
@@ -51,9 +53,33 @@ describe('画布模板', () => {
     for (const node of file.nodes) {
       const src = node.data.kind === 'text' ? node.data.referenceSrc : node.data.src;
       if (!src || !src.startsWith('/templates/')) continue;
-      expect(existsSync(resolve(dirname(TEMPLATE_DIR), src.slice(1))), `缺文件 ${src}`).toBe(true);
+      expect(existsSync(resolve(PUBLIC_DIR, src.slice(1))), `缺文件 ${src}`).toBe(true);
     }
 
     expect(file.viewport.zoom).toBeGreaterThan(0);
+  });
+
+  it('「模板」菜单里列的每个模板都真的存在、能解析', () => {
+    for (const template of CANVAS_TEMPLATES) {
+      expect(template.path.startsWith('/templates/')).toBe(true);
+      const path = resolve(PUBLIC_DIR, template.path.slice(1));
+      expect(existsSync(path), `缺文件 ${template.path}`).toBe(true);
+      expect(parseCanvasFile(readFileSync(path, 'utf8')).nodes.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('fetchTemplate 读到什么就解析什么，读不到就报错', async () => {
+    const text = readFileSync(resolve(PUBLIC_DIR, CANVAS_TEMPLATES[0].path.slice(1)), 'utf8');
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, text: async () => text })));
+    try {
+      const file = await fetchTemplate(CANVAS_TEMPLATES[0].path);
+      expect(file.nodes.length).toBeGreaterThan(0);
+      expect(file.edges.length).toBeGreaterThan(0);
+
+      vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404, text: async () => '' })));
+      await expect(fetchTemplate('/templates/nope.json')).rejects.toThrow(/模板读取失败/);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

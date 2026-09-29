@@ -2,11 +2,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { generateQwenImage } from './provider';
 import { PROVIDER_PRESETS } from './settings';
 
-const qwenConfig = {
+/**
+ * 老的 wanx 配置：预设已经换成 qwen-image 那代了，但用户浏览器里存着的老配置
+ * 还得继续走「提交任务 + 轮询」那条路，所以这里显式钉住老模型来测。
+ */
+const legacyQwenConfig = {
   provider: 'qwen' as const,
   baseUrl: PROVIDER_PRESETS.qwen.baseUrl,
   apiKey: 'sk-qwen',
-  imageModel: PROVIDER_PRESETS.qwen.imageModel,
+  imageModel: 'wanx2.1-t2i-turbo',
   textModel: PROVIDER_PRESETS.qwen.textModel,
   imageSize: PROVIDER_PRESETS.qwen.imageSize,
 };
@@ -38,7 +42,7 @@ describe('generateQwenImage（千问原生异步接口）', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await generateQwenImage(
-      qwenConfig,
+      legacyQwenConfig,
       { prompt: '一位男员工', texts: ['商务正装'], images: [], size: '1024*1024' },
       { pollIntervalMs: 1, maxPolls: 3 },
     );
@@ -64,7 +68,7 @@ describe('generateQwenImage（千问原生异步接口）', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(
-      generateQwenImage(qwenConfig, { prompt: '猫', texts: [], images: [], size: '1024*1024' }, { pollIntervalMs: 1, maxPolls: 2 }),
+      generateQwenImage(legacyQwenConfig, { prompt: '猫', texts: [], images: [], size: '1024*1024' }, { pollIntervalMs: 1, maxPolls: 2 }),
     ).rejects.toThrow('模型未开通');
   });
 
@@ -76,7 +80,7 @@ describe('generateQwenImage（千问原生异步接口）', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(
-      generateQwenImage(qwenConfig, { prompt: '猫', texts: [], images: [], size: '1024*1024' }, { pollIntervalMs: 1, maxPolls: 2 }),
+      generateQwenImage(legacyQwenConfig, { prompt: '猫', texts: [], images: [], size: '1024*1024' }, { pollIntervalMs: 1, maxPolls: 2 }),
     ).rejects.toThrow(/超时/);
   });
 
@@ -101,7 +105,7 @@ describe('generateQwenImage（千问原生异步接口）', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await generateQwenImage(
-      qwenConfig,
+      legacyQwenConfig,
       {
         prompt: '把背景换成蓝色',
         texts: [],
@@ -136,7 +140,7 @@ describe('generateQwenImage（千问原生异步接口）', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await generateQwenImage(
-      { ...qwenConfig, imageModel: 'wanx2.1-imageedit' },
+      { ...legacyQwenConfig, imageModel: 'wanx2.1-imageedit' },
       { prompt: '改成水彩', texts: [], images: [{ name: 'n1', dataUrl: 'data:image/png;base64,AAA' }], size: '1024*1024' },
       { pollIntervalMs: 1, maxPolls: 3 },
     );
@@ -159,7 +163,7 @@ describe('generateQwenImage（千问原生异步接口）', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await generateQwenImage(
-      { ...qwenConfig, imageEditModel: 'my-gateway-edit-model' },
+      { ...legacyQwenConfig, imageEditModel: 'my-gateway-edit-model' },
       { prompt: '改成水彩', texts: [], images: [{ name: 'n1', dataUrl: 'data:image/png;base64,AAA' }], size: '1024*1024' },
       { pollIntervalMs: 1, maxPolls: 3 },
     );
@@ -182,7 +186,7 @@ describe('generateQwenImage（千问原生异步接口）', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await generateQwenImage(
-      qwenConfig,
+      legacyQwenConfig,
       {
         prompt: '合成',
         texts: [],
@@ -205,7 +209,7 @@ describe('generateQwenImage（千问原生异步接口）', () => {
     );
 
     await expect(
-      generateQwenImage(qwenConfig, { prompt: '猫', texts: [], images: [], size: '1024*1024' }, { pollIntervalMs: 1, maxPolls: 1 }),
+      generateQwenImage(legacyQwenConfig, { prompt: '猫', texts: [], images: [], size: '1024*1024' }, { pollIntervalMs: 1, maxPolls: 1 }),
     ).rejects.toThrow(/401/);
   });
 
@@ -224,7 +228,7 @@ describe('generateQwenImage（千问原生异步接口）', () => {
     const longScript = '按这段剧本画分镜。'.repeat(400);
     await expect(
       generateQwenImage(
-        qwenConfig,
+        legacyQwenConfig,
         {
           prompt: '继续生成并把字变清晰',
           texts: [longScript],
@@ -258,7 +262,7 @@ describe('generateQwenImage（千问原生异步接口）', () => {
     const script = '按这段剧本画分镜：女医生翻病例。';
     await expect(
       generateQwenImage(
-        qwenConfig,
+        legacyQwenConfig,
         {
           prompt: '继续生成并把字变清晰',
           texts: [script],
@@ -293,7 +297,7 @@ describe('generateQwenImage（千问原生异步接口）', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await generateQwenImage(
-      { ...qwenConfig, imageModel: 'qwen-image-3.0' },
+      { ...legacyQwenConfig, imageModel: 'qwen-image-3.0' },
       { prompt: '一只橘猫', texts: [], images: [], size: '1024*1024' },
       { pollIntervalMs: 1, maxPolls: 2 },
     );
@@ -327,7 +331,7 @@ describe('generateQwenImage（千问原生异步接口）', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await generateQwenImage(
-      { ...qwenConfig, imageModel: 'qwen-image-3.0', imageEditModel: 'qwen-image-edit-plus' },
+      { ...legacyQwenConfig, imageModel: 'qwen-image-3.0', imageEditModel: 'qwen-image-edit-plus' },
       {
         prompt: '把背景换成夜晚的星空',
         texts: [],
@@ -361,7 +365,7 @@ describe('generateQwenImage（千问原生异步接口）', () => {
 
     const longScript = '按这段剧本画分镜。'.repeat(200); // 1800 字
     await generateQwenImage(
-      { ...qwenConfig, imageModel: 'qwen-image-3.0' },
+      { ...legacyQwenConfig, imageModel: 'qwen-image-3.0' },
       { prompt: '画出来', texts: [longScript], images: [], size: '1024*1024' },
       { pollIntervalMs: 1, maxPolls: 2 },
     );
@@ -383,7 +387,7 @@ describe('generateQwenImage（千问原生异步接口）', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await generateQwenImage(
-      { ...qwenConfig, imageModel: 'qwen-image-3.0' },
+      { ...legacyQwenConfig, imageModel: 'qwen-image-3.0' },
       { prompt: '一只猫', texts: [], images: [], size: '1664*1664' },
       { pollIntervalMs: 1, maxPolls: 2 },
     );
@@ -391,3 +395,4 @@ describe('generateQwenImage（千问原生异步接口）', () => {
     expect(result.imageSrc.startsWith('data:image/png;base64,')).toBe(true);
   });
 });
+

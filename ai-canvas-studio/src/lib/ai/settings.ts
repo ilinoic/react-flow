@@ -44,9 +44,11 @@ export const PROVIDER_PRESETS: Record<AiProvider, ProviderPreset> = {
   qwen: {
     label: '通义千问 · 阿里云百炼',
     baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    imageModel: 'wanx2.1-t2i-turbo',
-    imageEditModel: 'wanx2.1-imageedit',
-    textModel: 'qwen-plus',
+    // 2026-09 查过百炼的模型列表：qwen-image-3.0-pro / qwen-image-edit-max / qwen3.8-max
+    // 是当时最新的三件套，这里跟着更新，别再回落到老的 wanx2.1 那一代。
+    imageModel: 'qwen-image-3.0-pro',
+    imageEditModel: 'qwen-image-edit-max',
+    textModel: 'qwen3.8-max',
     imageSize: '1024*1024',
   },
 };

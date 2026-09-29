@@ -18,7 +18,7 @@ const FIELDS: { key: keyof AiConfig; label: string; placeholder?: string; secret
   {
     key: 'imageEditModel',
     label: '图改图模型',
-    placeholder: '留空则自动挑（千问用 wanx2.1-imageedit）',
+    placeholder: '例如 qwen-image-edit-max（留空则按图片模型自动挑）',
   },
   { key: 'textModel', label: '文本模型', placeholder: 'gpt-4o-mini' },
   { key: 'imageSize', label: '默认图片尺寸', placeholder: '1024x1024' },

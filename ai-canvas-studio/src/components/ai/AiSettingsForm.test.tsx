@@ -41,8 +41,10 @@ describe('AiSettingsForm', () => {
     expect((screen.getByLabelText('Base URL') as HTMLInputElement).value).toBe(
       'https://dashscope.aliyuncs.com/compatible-mode/v1',
     );
-    expect((screen.getByLabelText('文本模型') as HTMLInputElement).value).toMatch(/^qwen/);
-    expect((screen.getByLabelText('图片模型') as HTMLInputElement).value).toMatch(/^wanx/);
+    expect((screen.getByLabelText('文本模型') as HTMLInputElement).value).toBe('qwen3.8-max');
+    expect((screen.getByLabelText('图片模型') as HTMLInputElement).value).toBe(
+      'qwen-image-3.0-pro',
+    );
     expect((screen.getByLabelText('API Key') as HTMLInputElement).value).toBe('sk-abc');
   });
 
@@ -78,11 +80,11 @@ describe('AiSettingsForm', () => {
     render(<AiSettingsForm />);
 
     await userEvent.clear(screen.getByLabelText('图改图模型'));
-    await userEvent.type(screen.getByLabelText('图改图模型'), 'wanx2.1-imageedit');
+    await userEvent.type(screen.getByLabelText('图改图模型'), 'my-custom-edit-model');
     await userEvent.click(screen.getByRole('button', { name: '保存' }));
 
     expect(JSON.parse(localStorage.getItem(AI_SETTINGS_KEY)!).imageEditModel).toBe(
-      'wanx2.1-imageedit',
+      'my-custom-edit-model',
     );
   });
 
@@ -92,7 +94,7 @@ describe('AiSettingsForm', () => {
     await userEvent.selectOptions(screen.getByLabelText('供应商'), 'qwen');
 
     expect((screen.getByLabelText('图改图模型') as HTMLInputElement).value).toBe(
-      'wanx2.1-imageedit',
+      'qwen-image-edit-max',
     );
   });
 });

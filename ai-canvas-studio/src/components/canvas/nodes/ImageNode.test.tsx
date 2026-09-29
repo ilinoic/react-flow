@@ -287,7 +287,14 @@ describe('ImageNode', () => {
   });
 
   it('改图时参考信息超过接口上限会明说会截断', async () => {
-    saveAiSettings({ provider: 'qwen', apiKey: 'sk-test', ...PROVIDER_PRESETS.qwen });
+    // 老 wanx 那条改图接口才有 1800 字上限，所以这里显式用老配置来测提示。
+    saveAiSettings({
+      provider: 'qwen',
+      apiKey: 'sk-test',
+      ...PROVIDER_PRESETS.qwen,
+      imageModel: 'wanx2.1-t2i-turbo',
+      imageEditModel: 'wanx2.1-imageedit',
+    });
     const reference = s().addTextNode({ x: 0, y: 0 });
     s().updateNodeData(reference, { text: '剧本'.repeat(1000) } as never);
     const id = s().addImageNode({ x: 300, y: 0 });

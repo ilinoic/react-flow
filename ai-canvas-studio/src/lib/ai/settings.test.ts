@@ -45,16 +45,22 @@ describe('AI 设置读写', () => {
     ).toBe(false);
   });
 
-  it('内置通义千问预设：地址与模型名都给出', () => {
+  it('内置通义千问预设：地址与最新模型名都给出', () => {
     const qwen = PROVIDER_PRESETS.qwen;
     expect(qwen.baseUrl).toBe('https://dashscope.aliyuncs.com/compatible-mode/v1');
-    expect(qwen.textModel).toMatch(/^qwen/);
-    expect(qwen.imageModel).toMatch(/^wanx/);
+    expect(qwen.textModel).toBe('qwen3.8-max');
+    expect(qwen.imageModel).toBe('qwen-image-3.0-pro');
     expect(qwen.label).toContain('千问');
   });
 
-  it('千问预设给出图改图模型', () => {
-    expect(PROVIDER_PRESETS.qwen.imageEditModel).toBe('wanx2.1-imageedit');
+  it('千问预设的图改图模型用最新的编辑模型', () => {
+    expect(PROVIDER_PRESETS.qwen.imageEditModel).toBe('qwen-image-edit-max');
+  });
+
+  it('千问预设不再用老的 wanx 模型', () => {
+    const qwen = PROVIDER_PRESETS.qwen;
+    expect(qwen.imageModel).not.toMatch(/^wanx/);
+    expect(qwen.imageEditModel).not.toMatch(/^wanx/);
   });
 
   it('旧配置里没有图改图模型也能照常读出来', () => {

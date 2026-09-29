@@ -8,7 +8,7 @@ import { emailField, signInSchema, signUpSchema } from '@/lib/auth/validation';
 
 /**
  * Supabase 的报错是英文原文，直接显示出来用户看不懂，
- * 而这两条恰好是「注册收不到邮件」最常见的两个原因，所以翻成人话并给出下一步。
+ * 下面这几条恰好是「注册完收不到邮件 / 登不上」最常见的原因，所以翻成人话并给出下一步。
  */
 function friendlyAuthError(raw: string): string {
   if (/rate limit|too many requests/i.test(raw)) {
@@ -16,6 +16,9 @@ function friendlyAuthError(raw: string): string {
   }
   if (/not confirmed/i.test(raw)) {
     return '邮箱还没确认：点邮件里的确认链接就能登录。没收到就点下面的「重新发送确认邮件」';
+  }
+  if (/invalid login credentials|invalid credentials/i.test(raw)) {
+    return '邮箱或密码对不上：先确认邮箱有没有写错。忘了密码就点上面的「忘记密码？」；刚注册的邮箱要先用邮件里的链接确认过才能登录';
   }
   return raw;
 }

@@ -110,7 +110,7 @@ describe('AuthForm 的登录与注册提交', () => {
     expect(mocks.replace).toHaveBeenCalledWith('/projects');
   });
 
-  it('登录失败时把上游原因显示出来', async () => {
+  it('登录失败时把「邮箱或密码不对」翻成中文并给出下一步', async () => {
     render(<AuthForm mode="signin" />);
     mocks.signInWithPassword.mockResolvedValue({ error: { message: 'Invalid login credentials' } });
 
@@ -118,7 +118,9 @@ describe('AuthForm 的登录与注册提交', () => {
     await userEvent.type(screen.getByLabelText('密码'), '123456');
     await userEvent.click(screen.getByRole('button', { name: '登录' }));
 
-    expect(screen.getByRole('status')).toHaveTextContent('Invalid login credentials');
+    const status = screen.getByRole('status');
+    expect(status).toHaveTextContent(/邮箱或密码对不上/);
+    expect(status).toHaveTextContent(/忘记密码/);
   });
 });
 

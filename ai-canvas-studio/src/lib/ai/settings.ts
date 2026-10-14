@@ -50,11 +50,13 @@ export const PROVIDER_PRESETS: Record<AiProvider, ProviderPreset> = {
   qwen: {
     label: '通义千问 · 阿里云百炼',
     baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    // 2026-09-24 查过百炼的模型列表（help.aliyun.com/zh/model-studio/image-model）：
-    // 文生图和图改图都用 qwen-image-3.0-pro（官方「图片编辑」一节的推荐就是它），
-    // 文本用 qwen3.8-max。老的 wanx2.1 / wan2.1 那一代已经标成 Legacy，别再回落过去。
-    imageModel: 'qwen-image-3.0-pro',
-    imageEditModel: 'qwen-image-3.0-pro',
+    // 2026-10-14 用真 Key 逐个实测（都是带底图/不带底图各跑一遍）：
+    // - qwen-image-edit-max / -plus：多模态这条接口直接 404「Model not exist」，压根调不通；
+    // - qwen-image-3.0-pro：不带底图十几秒没问题，一带底图要 150 秒，超过网关上限，前端只看到 524；
+    // - qwen-image-3.0：不带底图十几秒、带底图 30 秒左右，文生图和图改图都用它才稳。
+    // 文本继续用 qwen3.8-max。老的 wanx2.1 / wan2.1 已标 Legacy，不再回落。
+    imageModel: 'qwen-image-3.0',
+    imageEditModel: 'qwen-image-3.0',
     textModel: 'qwen3.8-max',
     imageSize: '1024*1024',
   },

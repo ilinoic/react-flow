@@ -45,16 +45,16 @@ describe('AI 设置读写', () => {
     ).toBe(false);
   });
 
-  it('内置通义千问预设：地址与最新模型名都给出', () => {
+  it('内置通义千问预设：地址与实测可用的模型名都给出', () => {
     const qwen = PROVIDER_PRESETS.qwen;
     expect(qwen.baseUrl).toBe('https://dashscope.aliyuncs.com/compatible-mode/v1');
     expect(qwen.textModel).toBe('qwen3.8-max');
-    expect(qwen.imageModel).toBe('qwen-image-3.0-pro');
+    expect(qwen.imageModel).toBe('qwen-image-3.0');
     expect(qwen.label).toContain('千问');
   });
 
-  it('千问预设的图改图模型用同一代旗舰模型', () => {
-    expect(PROVIDER_PRESETS.qwen.imageEditModel).toBe('qwen-image-3.0-pro');
+  it('千问预设的图改图模型也用 qwen-image-3.0（pro 带底图会超时、edit 系列接口 404）', () => {
+    expect(PROVIDER_PRESETS.qwen.imageEditModel).toBe('qwen-image-3.0');
   });
 
   it('OpenAI 预设给的是当前一代的图片与文本模型', () => {

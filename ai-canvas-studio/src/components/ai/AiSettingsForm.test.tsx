@@ -43,7 +43,7 @@ describe('AiSettingsForm', () => {
     );
     expect((screen.getByLabelText('文本模型') as HTMLInputElement).value).toBe('qwen3.8-max');
     expect((screen.getByLabelText('图片模型') as HTMLInputElement).value).toBe(
-      'qwen-image-3.0-pro',
+      'qwen-image-3.0',
     );
     expect((screen.getByLabelText('API Key') as HTMLInputElement).value).toBe('sk-abc');
   });
@@ -94,7 +94,7 @@ describe('AiSettingsForm', () => {
     await userEvent.selectOptions(screen.getByLabelText('供应商'), 'qwen');
 
     expect((screen.getByLabelText('图改图模型') as HTMLInputElement).value).toBe(
-      'qwen-image-3.0-pro',
+      'qwen-image-3.0',
     );
   });
 
@@ -125,3 +125,4 @@ describe('AiSettingsForm', () => {
     expect((screen.getByLabelText('API Key') as HTMLInputElement).value).toBe('sk-old');
   });
 });
+
